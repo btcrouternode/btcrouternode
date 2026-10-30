@@ -38,7 +38,7 @@ skip() { echo "SKIP device part: $*"; echo "ALL PASS: test-image-tools (T-IMAGE-
 command -v docker >/dev/null 2>&1 || skip "docker not installed"
 [ -e /proc/sys/fs/binfmt_misc/qemu-aarch64 ] || skip "no qemu-aarch64 binfmt (sudo apt install qemu-user-binfmt (older releases: qemu-user-static binfmt-support))"
 docker image inspect alpine:3.20 >/dev/null 2>&1 || skip "alpine:3.20 image not present"
-TGZ="$ROOT/build/dl/bitcoin-29.4-aarch64-linux-gnu.tar.gz"
+TGZ="$ROOT/build/dl/bitcoin-29.5-aarch64-linux-gnu.tar.gz"
 [ -f "$TGZ" ] || skip "pinned Core tarball not in build/dl"
 
 W=$(mktemp -d)

@@ -38,6 +38,7 @@ version:
 	@echo "$(PRODUCT_VER)"
 	@echo "OPENWRT_VER=$(OPENWRT_VER)"
 	@echo "KNOTS_VER=$(KNOTS_VER)"
+	@echo "CORE_VER=$(CORE_VER)"
 	@echo "BUILD_NUM=$(BUILD_NUM)"
 	@echo "PROFILE=$(PROFILE)"
 	@echo "PACKAGES=$(PACKAGES)"
@@ -81,6 +82,7 @@ overlay: rootfs
 	printf '%s\n' \
 		"OPENWRT_VER=$(OPENWRT_VER)" \
 		"KNOTS_VER=$(KNOTS_VER)" \
+		"CORE_VER=$(CORE_VER)" \
 		"BUILD_NUM=$(BUILD_NUM)" \
 		"PRODUCT_VER=$(PRODUCT_VER)" \
 		> $(FILES_DIR)/etc/knots/versions.env
@@ -193,6 +195,7 @@ test-host:
 	$(ROOT)/tests/host/test-wallet-cgi-exec.sh
 	$(ROOT)/tests/host/test-node-bin-install.sh
 	$(ROOT)/tests/host/test-node-core-seed-ui.sh
+	$(ROOT)/tests/host/test-node-factory-refresh.sh
 	$(ROOT)/tests/host/test-node-busy-status.sh
 	$(ROOT)/tests/host/test-http-https-redirect.sh
 	$(ROOT)/tests/host/test-nginx-conf.sh

@@ -14,7 +14,7 @@ KEY="${1:?usage: sign-release.sh SECRET_KEY [targets-dir]}"
 DIR="${2:-$ROOT/bin/targets/mediatek/filogic}"
 H="${HOST_BIN:-$ROOT/build/imagebuilder/staging_dir/host/bin}"
 OV=$(sed -n 's/^OPENWRT_VER := //p' "$ROOT/build/version.env")
-KV=$(sed -n 's/^KNOTS_VER := //p' "$ROOT/build/version.env")
+KV=$(sed -n 's/^CORE_VER := //p' "$ROOT/build/version.env")
 BN=$(sed -n 's/^BUILD_NUM := //p' "$ROOT/build/version.env")
 PRE="bpi-r4-phase2-${OV}.${KV}.${BN}"
 IMG="$DIR/${PRE}-squashfs-sysupgrade.itb"

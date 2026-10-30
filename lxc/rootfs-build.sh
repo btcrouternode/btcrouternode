@@ -148,7 +148,7 @@ rm -rf "${STAGING}/core"
 mkdir -p "${STAGING}/core"
 tar -xzf "${DL_DIR}/${CORE_TGZ}" -C "${STAGING}/core"
 
-echo "==> Installing Knots + Core binaries (shared datadir; Knots default)"
+echo "==> Installing Knots + Core binaries (shared datadir; Core is the default, Knots selectable)"
 docker exec "$CONTAINER" mkdir -p \
   /usr/local/lib/bitcoin/knots/bin /usr/local/lib/bitcoin/core/bin /usr/local/bin /etc/bitcoin
 docker cp "${STAGING}/${KNOTS_DIRNAME}/bin/bitcoind" "$CONTAINER:/usr/local/lib/bitcoin/knots/bin/bitcoind"

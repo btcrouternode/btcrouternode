@@ -9,7 +9,7 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 OUT="${1:-$ROOT/bin/factory-station}"
 OV=$(sed -n 's/^OPENWRT_VER := //p' "$ROOT/build/version.env")
-KV=$(sed -n 's/^KNOTS_VER := //p' "$ROOT/build/version.env")
+KV=$(sed -n 's/^CORE_VER := //p' "$ROOT/build/version.env")
 BN=$(sed -n 's/^BUILD_NUM := //p' "$ROOT/build/version.env")
 VER="$OV.$KV.$BN"; PRE="bpi-r4-phase2-$VER"
 SRC="${TARGETS_DIR:-$ROOT/bin/targets/mediatek/filogic}"

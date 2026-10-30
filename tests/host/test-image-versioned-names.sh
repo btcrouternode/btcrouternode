@@ -21,9 +21,9 @@ grep -q 'PRODUCT_VER' "$SCRIPT" || {
 DIR="$ROOT/bin/targets/mediatek/filogic"
 if [ -d "$DIR" ] && ls "$DIR"/openwrt-*-squashfs-sysupgrade.itb >/dev/null 2>&1; then
 	OPENWRT_VER=$(sed -n 's/^OPENWRT_VER := //p' "$ROOT/build/version.env" | head -1)
-	KNOTS_VER=$(sed -n 's/^KNOTS_VER := //p' "$ROOT/build/version.env" | head -1)
+	CORE_VER=$(sed -n 's/^CORE_VER := //p' "$ROOT/build/version.env" | head -1)
 	BUILD_NUM=$(sed -n 's/^BUILD_NUM := //p' "$ROOT/build/version.env" | head -1)
-	PV="${OPENWRT_VER}.${KNOTS_VER}.${BUILD_NUM}"
+	PV="${OPENWRT_VER}.${CORE_VER}.${BUILD_NUM}"
 	[ -f "$DIR/bpi-r4-phase2-${PV}-squashfs-sysupgrade.itb" ] || {
 		echo "FAIL: missing bpi-r4-phase2-${PV}-squashfs-sysupgrade.itb (run publish script)"
 		exit 1

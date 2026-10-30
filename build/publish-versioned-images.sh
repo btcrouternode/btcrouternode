@@ -6,11 +6,11 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OPENWRT_VER=$(sed -n 's/^OPENWRT_VER := //p' "$ROOT/build/version.env" | head -1)
-KNOTS_VER=$(sed -n 's/^KNOTS_VER := //p' "$ROOT/build/version.env" | head -1)
+CORE_VER=$(sed -n 's/^CORE_VER := //p' "$ROOT/build/version.env" | head -1)
 BUILD_NUM=$(sed -n 's/^BUILD_NUM := //p' "$ROOT/build/version.env" | head -1)
 PROFILE=$(sed -n 's/^PROFILE := //p' "$ROOT/build/version.env" | head -1)
 PARTSIZE=$(sed -n 's/^ROOTFS_PARTSIZE_MIB := //p' "$ROOT/build/version.env" | head -1)
-PRODUCT_VER="${OPENWRT_VER}.${KNOTS_VER}.${BUILD_NUM}"
+PRODUCT_VER="${OPENWRT_VER}.${CORE_VER}.${BUILD_NUM}"
 
 DIR="${1:-$ROOT/bin/targets/mediatek/filogic}"
 [[ -d "$DIR" ]] || { echo "FAIL: missing targets dir $DIR"; exit 1; }

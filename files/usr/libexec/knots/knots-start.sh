@@ -113,9 +113,12 @@ case "$CMD" in
 		# "from the future". Never start the node with the clock behind its data.
 		/usr/libexec/knots/clock-floor.sh apply >/dev/null 2>&1 || true
 
-		# Restore Knots/Core choice from M.2 + /etc/knots before first start (B15)
-		# write_impl (via reconcile) also refreshes /etc/banner Active: line
-		/usr/libexec/knots/node-impl.sh reconcile 2>/dev/null || true
+		# Before the node starts: seed the factory node binaries onto the M.2,
+		# replace an OLDER factory pin with this image's one (a release's Core
+		# fix must reach routers already in use), and restore the Knots/Core
+		# choice from M.2 + /etc/knots (B15; write_impl also refreshes the
+		# /etc/banner Active: line).
+		/usr/libexec/knots/node-impl.sh ensure-default 2>/dev/null || true
 
 		# R1a — serial MOTD shows appliance build (SD/board identity for bugs)
 		if [ -f /etc/banner ] && [ -f /etc/knots/product_version ]; then

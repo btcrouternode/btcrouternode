@@ -24,7 +24,7 @@ fi
 TOOLS="$ROOT/bin/offline-tools/rnode-keygen"
 [ -f "$TOOLS/SHA256SUMS" ] || { echo "no offline tools — run: make offline-tools" >&2; exit 1; }
 OV=$(sed -n 's/^OPENWRT_VER := //p' "$ROOT/build/version.env")
-KV=$(sed -n 's/^KNOTS_VER := //p' "$ROOT/build/version.env")
+KV=$(sed -n 's/^CORE_VER := //p' "$ROOT/build/version.env")
 BN=$(sed -n 's/^BUILD_NUM := //p' "$ROOT/build/version.env")
 REL="bpi-r4-phase2-$OV.$KV.$BN-squashfs-sysupgrade.itb"
 IMG="$ROOT/bin/targets/mediatek/filogic/$REL"

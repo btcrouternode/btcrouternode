@@ -32,11 +32,11 @@ seed() {
 }
 
 seed knots "v29.3.knots20260507"
-seed core "v29.4"
+seed core "v29.5"
 
 # Second seed must not clobber
 echo "user" >"$TMP/mnt/bitcoin/node-bin/core/VERSION"
-seed core "v29.4"
+seed core "v29.5"
 grep -qx user "$TMP/mnt/bitcoin/node-bin/core/VERSION"
 
 [ -x "$TMP/mnt/bitcoin/node-bin/core/bin/bitcoind" ]
@@ -53,8 +53,8 @@ grep -q 'Bitcoin Node - Running Bitcoin Knots' "$ROOT/files/www/knots/node.html"
 # LXC bake still ships Core pin (baseline image content — not BB1 overwrite).
 # C4: tags/SHA256 pins live in build/version.env; rootfs-build.sh reads them
 # via _version_env instead of hardcoding.
-grep -q 'CORE_TAG := v29.4' "$ROOT/build/version.env"
-grep -q 'CORE_VER := 29.4' "$ROOT/build/version.env"
+grep -q 'CORE_TAG := v29.5' "$ROOT/build/version.env"
+grep -q 'CORE_VER := 29.5' "$ROOT/build/version.env"
 grep -q 'build/version.env' "$ROOT/lxc/rootfs-build.sh"
 grep -q '_version_env CORE_TAG' "$ROOT/lxc/rootfs-build.sh"
 grep -q 'bitcoin-core-${CORE_VER}' "$ROOT/lxc/rootfs-build.sh"

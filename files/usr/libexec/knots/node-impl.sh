@@ -8,8 +8,18 @@ set -e
 # shellcheck disable=SC1091
 . /usr/libexec/knots/rpc.sh || true
 
-ROOTFS=/srv/lxc/knots/rootfs
-BINROOT=/mnt/bitcoin/node-bin
+ROOTFS=${NODE_IMPL_ROOTFS:-/srv/lxc/knots/rootfs}
+BINROOT=${NODE_IMPL_BINROOT:-/mnt/bitcoin/node-bin}
+
+# Factory pins shipped in this image (build/version.env KNOTS_TAG / CORE_TAG;
+# tests/host/test-node-factory-refresh.sh checks they match).
+FACTORY_KNOTS=v29.3.knots20260507
+FACTORY_CORE=v29.5
+# Earlier factory pins that this image replaces on the M.2, so a fix in a new
+# release reaches routers already in use (29.4 → 29.5: CVE-2026-117349/117346).
+# A version not listed here was installed by the owner (B19) — never touched.
+OLD_FACTORY_KNOTS=""
+OLD_FACTORY_CORE="v29.4"
 
 log() { logger -t node-impl "$*"; echo "node-impl: $*" >&2; }
 
@@ -72,8 +82,43 @@ seed_factory_impl() {
 		cp -a "$src/$b" "$BINROOT/$impl/bin/"
 	done
 	printf '%s\n' "$ver" >"$BINROOT/$impl/VERSION"
+	echo factory >"$BINROOT/$impl/ORIGIN"
 	sync "$BINROOT/$impl/VERSION" 2>/dev/null || sync
 	log "seeded factory $impl $ver → $BINROOT/$impl/bin"
+}
+
+# Replace an OLDER factory pin on the M.2 with this image's pin. Only while
+# no bitcoind runs (copying over a running binary fails; knots-start calls this
+# before the container starts). The replaced version is kept as <impl>.prev,
+# so Rollback on the Node page still works.
+refresh_factory_impl() {
+	# rfi_ prefix: POSIX sh has no locals and save_prev sets impl/src/dest
+	rfi_impl=$1
+	rfi_ver=$2
+	rfi_old=$3
+	rfi_src="$ROOTFS/usr/local/lib/bitcoin/$rfi_impl/bin"
+	bins_ok "$rfi_impl" || return 0
+	[ "$(cat "$BINROOT/$rfi_impl/ORIGIN" 2>/dev/null)" != owner ] || return 0
+	rfi_cur=$(cat "$BINROOT/$rfi_impl/VERSION" 2>/dev/null || true)
+	[ "$rfi_cur" != "$rfi_ver" ] || return 0
+	case " $rfi_old " in
+		*" $rfi_cur "*) ;;
+		*) return 0 ;;
+	esac
+	[ -x "$rfi_src/bitcoind" ] && [ -x "$rfi_src/bitcoin-cli" ] || return 0
+	if pidof bitcoind >/dev/null 2>&1; then
+		log "factory $rfi_impl $rfi_cur → $rfi_ver waits for the node to stop (next start)"
+		return 0
+	fi
+	save_prev "$rfi_impl"
+	for rfi_b in bitcoind bitcoin-cli bitcoin-tx bitcoin-util bitcoin-wallet; do
+		[ -f "$rfi_src/$rfi_b" ] || continue
+		cp -a "$rfi_src/$rfi_b" "$BINROOT/$rfi_impl/bin/"
+	done
+	printf '%s\n' "$rfi_ver" >"$BINROOT/$rfi_impl/VERSION"
+	echo factory >"$BINROOT/$rfi_impl/ORIGIN"
+	sync "$BINROOT/$rfi_impl/VERSION" 2>/dev/null || sync
+	log "updated factory $rfi_impl $rfi_cur → $rfi_ver (previous kept for rollback)"
 }
 
 ensure_layout() {
@@ -91,19 +136,21 @@ ensure_layout() {
 				cp -a "$ROOTFS/usr/local/bin/$b" "$BINROOT/knots/bin/"
 				rm -f "$ROOTFS/usr/local/bin/$b"
 			done
-			echo "v29.3.knots20260507" >"$BINROOT/knots/VERSION"
+			echo "$FACTORY_KNOTS" >"$BINROOT/knots/VERSION"
 			log "moved Knots binaries to $BINROOT/knots/bin (overlay relief)"
 		fi
 	fi
 	# Shipped defaults: Knots B4a + Core B16 must appear installed under node-bin
-	seed_factory_impl knots "v29.3.knots20260507"
-	seed_factory_impl core "v29.4"
+	seed_factory_impl knots "$FACTORY_KNOTS"
+	seed_factory_impl core "$FACTORY_CORE"
 	[ -f "$BINROOT/knots/VERSION" ] || {
-		[ -x "$BINROOT/knots/bin/bitcoind" ] && echo "v29.3.knots20260507" >"$BINROOT/knots/VERSION"
+		[ -x "$BINROOT/knots/bin/bitcoind" ] && echo "$FACTORY_KNOTS" >"$BINROOT/knots/VERSION"
 	}
 	[ -f "$BINROOT/core/VERSION" ] || {
-		[ -x "$BINROOT/core/bin/bitcoind" ] && echo "v29.4" >"$BINROOT/core/VERSION"
+		[ -x "$BINROOT/core/bin/bitcoind" ] && echo "$FACTORY_CORE" >"$BINROOT/core/VERSION"
 	}
+	refresh_factory_impl knots "$FACTORY_KNOTS" "$OLD_FACTORY_KNOTS"
+	refresh_factory_impl core "$FACTORY_CORE" "$OLD_FACTORY_CORE"
 	reconcile_impl
 }
 
@@ -220,6 +267,8 @@ install_bins_from_dir() {
 	# Regular files only — a tarball-planted symlink must not chmod its target
 	find "$BINROOT/$impl/bin" -maxdepth 1 -type f -exec chmod 755 {} +
 	printf '%s\n' "$ver" >"$BINROOT/$impl/VERSION"
+	# The owner chose this version: a later image's factory refresh leaves it alone
+	echo owner >"$BINROOT/$impl/ORIGIN"
 }
 
 detect_version_label() {
@@ -391,6 +440,8 @@ do_rollback() {
 	rm -rf "$BINROOT/$drb_impl"
 	mkdir -p "$BINROOT/$drb_impl"
 	cp -a "$BINROOT/${drb_impl}.prev/." "$BINROOT/$drb_impl/"
+	# Rolled back on purpose: the next boot must not "update" it again
+	echo owner >"$BINROOT/$drb_impl/ORIGIN"
 	rm -rf "$BINROOT/${drb_impl}.prev"
 	mkdir -p "$BINROOT/${drb_impl}.prev"
 	if [ -x "$stage/bin/bitcoind" ]; then
@@ -524,6 +575,12 @@ case "${1:-status}" in
 			ensure_layout
 		fi
 		echo "ok $(active_impl)"
+		;;
+	refresh-factory)
+		# Tests / support: just the factory refresh (no mount check, no reconcile)
+		refresh_factory_impl knots "$FACTORY_KNOTS" "$OLD_FACTORY_KNOTS"
+		refresh_factory_impl core "$FACTORY_CORE" "$OLD_FACTORY_CORE"
+		echo "ok"
 		;;
 	reconcile)
 		reconcile_impl || {

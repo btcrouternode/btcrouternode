@@ -42,7 +42,7 @@
 | T-STO-3d | S7 | P5 | unit | `tests/host/test-wipe-loop.sh` | Skip/assert wipe retired |
 | T-STO-4 | S4 | P2 | integration | device smoke | `/mnt/bitcoin` mounted; datadir present while IBD |
 | T-NODE-1 | B1–B5 | P2 | integration | device smoke | LXC `21.21.21.21`; peers ≥ 1 when WAN up |
-| T-VER-1 | R1a | P1 | integration | device smoke | `product_version` matches `{openwrt}.{knots}.{build}` |
+| T-VER-1 | R1a | P1 | integration | device smoke | `product_version` matches `{openwrt}.{core}.{build}` |
 | T-NODE-IMPL-PERSIST | B15, R1a | Phase 2 | unit | `test-node-impl-persist.sh` | Dual persist helpers; build number; refuse unmounted writes |
 | T-LED-1 | N4 | P3 | integration | device smoke | `led-status` → `syncing`/`synced`/`booting`/`error`; sysfs trigger set |
 | T-ID-1 | S6 | P4 | unit | `tests/host/test-identity-regen.sh` | Factory marker → removes peers/cookie; flag set; second run no-op |

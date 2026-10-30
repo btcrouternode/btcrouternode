@@ -110,7 +110,7 @@ Until Phase 3 is authorized, Phase 2 may keep **hooks/docs** only (**W5**) — n
 | ID | Phase | Description |
 |----|-------|-------------|
 | **R1** | P1 | Appliance is based on the **latest stable OpenWrt** release supported for BPI-R4 at build time. |
-| **R1a** | P1 | **Product/build version** = OpenWrt + Knots + **appliance build number**, dotted form **`{openwrt}.{knots}.{build}`**, e.g. **`24.10.8.29.3.2`**. Increment **`build`** for each appliance image/release that changes product software (not for every local WIP). Record the concrete string in `docs/AS_BUILT.md` on each release/build. |
+| **R1a** | P1 | **Product/build version** = OpenWrt + Bitcoin Core (the default node) + **appliance build number**, dotted form **`{openwrt}.{core}.{build}`**, e.g. **`24.10.8.29.5.119`** (from build 119; Release 1 = `24.10.8.29.3.118` still used the Knots version). Increment **`build`** for each appliance image/release that changes product software (not for every local WIP). Record the concrete string in `docs/AS_BUILT.md` on each release/build. |
 | **R2** | P1 | **LuCI** is installed and reachable on the **internal LAN** for normal router administration. |
 | **R3** | P1 | Device functions as a home router: WAN uplink, LAN switching/routing, NAT as appropriate. |
 | **R4** | P1 | Plug-and-play first boot: sensible defaults so a non-technical user can connect WAN + LAN and get online without CLI. **Retail** units also run the first-run Setup wizard (**U17**). |
@@ -142,7 +142,7 @@ Until Phase 3 is authorized, Phase 2 may keep **hooks/docs** only (**W5**) — n
 | **B7** | P3 | **LuCI and the appliance node UI coexist** — both reachable on LAN. **Default browser entry** is the Knots dashboard on **80/443**; LuCI is secondary (see **U1**). |
 | **B8** | P2 | Selected implementation runs as headless **`bitcoind`** inside **LXC**. `bitcoin-qt` is not the appliance UI path. |
 | **B15** | P2 | User may choose **Bitcoin Knots** or **Bitcoin Core** as the full-node implementation. **Default is Core** (changed from Knots after external tester feedback, IUE v2 2026-09; Knots remains bundled and selectable). Choice **must persist across clean reboot and hard power loss**: store on M.2 (`/mnt/bitcoin/.node-impl`) and mirror to system (`/etc/knots/node-impl`); reconcile after mount before starting `bitcoind`. Never write a default choice onto an **unmounted** `/mnt/bitcoin` (that lands on overlay and can mask the real preference). |
-| **B16** | P2 | **Pinned Core build (optional runtime):** **`v29.4`** from [bitcoincore.org](https://bitcoincore.org/bin/bitcoin-core-29.4/) (`bitcoin-29.4-aarch64-linux-gnu`). Record in AS_BUILT. |
+| **B16** | P2 | **Pinned Core build (optional runtime):** **`v29.5`** from [bitcoincore.org](https://bitcoincore.org/bin/bitcoin-core-29.5/) (`bitcoin-29.5-aarch64-linux-gnu`). Record in AS_BUILT. |
 | **B17** | P2 | **Shared blockchain datadir:** both implementations use the **same** M.2 datadir (`/mnt/bitcoin` contract) so the user can switch without re-downloading the chain. Switching stops the running `bitcoind` and starts the other against that datadir. |
 | **B18** | P3 / Phase 2 | LAN UI exposes the implementation choice (status + switch) with an explicit confirm; WAN cannot change it. Phase 3 Knots-only modules (e.g. privacy) may be unavailable or gated while Core is active — surface that when those modules ship. Shared datadir means wallet files are **intended** to be the same across Knots/Core; switch UX must still apply **U7a** money-safety warnings when wallet dirs exist. |
 | **B19** | P2 | User may **install or replace** Knots and/or Core binaries on the M.2 under `/mnt/bitcoin/node-bin/{knots,core}/` from an **official aarch64 Linux release tarball** (`*-aarch64-linux-gnu.tar.gz`). Factory pins (**B4a**, **B16**) remain the **shipped defaults** only; they must not permanently prevent the user from running another released version. Install must **not** wipe `blocks/` / `chainstate/` (**B17**, **NF8**). |
@@ -350,14 +350,14 @@ Internet
 | WAN | DHCP client by default; Setup DHCP-first then PPPoE (**R10**, **R10a**); **DNAT 8333** IPv4+IPv6 (**N6**, **N6a**); **UPnP off** (N11) |
 | LAN | DHCP **`.100–.200`**; hostname **`node-router`**; Knots UI **80/443**; LuCI **8080/8443** (R9, R11, B6, U1/U1a) |
 | Knots pin | **`v29.3.knots20260507`** non-RDTS (B4a) — bundled Knots build; **default node is Core** (**B15**); user may install other released versions (**B19–B21**, **U11**) |
-| Core pin | **`v29.4`** shipped selectable implementation (B15–B17); user may install other released versions (**B19–B21**, **U11**) |
+| Core pin | **`v29.5`** shipped default implementation (B15–B17); user may install other released versions (**B19–B21**, **U11**) |
 | Node binaries | M.2 `/mnt/bitcoin/node-bin/{knots,core}/` with `.prev` rollback (B19, B20) |
 | Node datadir | Shared `/mnt/bitcoin` for Knots and Core (B17) |
 | LAN → DMZ | Required only: router → RPC **8332** (N8–N10) |
 | DMZ outbound | **Allow any** first; refine later (N7) |
 | Bring-up | **Production: eMMC boot**; SD = factory/dev install only (R5, R5a) |
 | SPI-NAND | Bootloader / recovery bridge only — not full appliance root (R5) |
-| Product version | **`{openwrt}.{knots}.{build}`** e.g. `24.10.8.29.3.2` (R1a) |
+| Product version | **`{openwrt}.{core}.{build}`** e.g. `24.10.8.29.5.119` (R1a) |
 | Port map | **Stock OpenWrt BPI-R4** defaults (R12) |
 | Admin password | Lab **`knotsnode21`**; retail Setup **must** change (**R13**, **U17**) |
 | TLS v1 | Local CA + **Setup HTTPS trust step** + install scripts (**N13**, **U17**); `/tls.html` help |
@@ -381,7 +381,7 @@ Internet
 
 Full register: `docs/SCOPE_GAPS_REPORT.md`. Remaining highlights:
 
-1. Concrete **`{openwrt}.{knots}.{build}`** string per Phase 2 release build (R1a).
+1. Concrete **`{openwrt}.{core}.{build}`** string per release build (R1a).
 2. Factory DOC3a eMMC install SOP verification on hardware (R5a).
 3. Deferred: refined DMZ egress (**G5**); Wi‑Fi multi-radio polish in TECH_SPEC §7.6.
 4. **First-run Setup implement detail (TECH_SPEC §7.6):** timeouts, password min length, setup-complete marker, lab skip policy — do not invent in UI without TECH_SPEC.

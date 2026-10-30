@@ -1,5 +1,5 @@
 #!/bin/sh
-# Start/stop active bitcoind (Knots default or Core). Bins on shared M.2 (B15/B17).
+# Start/stop active bitcoind (Core default, or Knots). Bins on shared M.2 (B15/B17).
 set -e
 PIDFILE=/run/bitcoind.pid
 CONF=/etc/bitcoin/bitcoin.conf

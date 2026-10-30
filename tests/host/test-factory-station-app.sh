@@ -11,7 +11,7 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
 python3 -c 'import serial, PIL' 2>/dev/null || { echo "SKIP: pyserial/PIL missing"; exit 0; }
-OV=$(sed -n 's/^OPENWRT_VER := //p' "$ROOT/build/version.env"); KV=$(sed -n 's/^KNOTS_VER := //p' "$ROOT/build/version.env")
+OV=$(sed -n 's/^OPENWRT_VER := //p' "$ROOT/build/version.env"); KV=$(sed -n 's/^CORE_VER := //p' "$ROOT/build/version.env")
 BN=$(sed -n 's/^BUILD_NUM := //p' "$ROOT/build/version.env"); VER="$OV.$KV.$BN"
 [ -f "$ROOT/bin/targets/mediatek/filogic/bpi-r4-phase2-$VER-sdcard.img.gz" ] || { echo "SKIP: no build for $VER (make image)"; exit 0; }
 W=$(mktemp -d); trap 'kill $(cat "$W/pids" 2>/dev/null) 2>/dev/null || true; rm -rf "$W"' EXIT

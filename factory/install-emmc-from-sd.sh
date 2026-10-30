@@ -79,7 +79,7 @@ case "$END_PHASE" in 1|2|3|4) ;; *) echo "--to-phase must be 1|2|3|4" >&2; exit 
 
 # Expected product version from build/version.env (F28 guard: must be a 7391 build).
 OV="$(sed -n 's/^OPENWRT_VER[[:space:]]*:=[[:space:]]*//p' "$ROOT/build/version.env" | tr -d '[:space:]')"
-KV="$(sed -n 's/^KNOTS_VER[[:space:]]*:=[[:space:]]*//p'    "$ROOT/build/version.env" | tr -d '[:space:]')"
+KV="$(sed -n 's/^CORE_VER[[:space:]]*:=[[:space:]]*//p'    "$ROOT/build/version.env" | tr -d '[:space:]')"
 BN="$(sed -n 's/^BUILD_NUM[[:space:]]*:=[[:space:]]*//p'   "$ROOT/build/version.env" | tr -d '[:space:]')"
 EXPECTED_VER="${OV:+${OV}.${KV}.${BN}}"
 

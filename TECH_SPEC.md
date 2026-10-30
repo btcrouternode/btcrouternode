@@ -38,7 +38,7 @@ If this document conflicts with `REQUIREMENTS.md`, **REQUIREMENTS wins** — ame
 | Bitcoin | Knots **`bitcoind`** | Unpruned; `disablewallet=1` until P6 |
 | Data | M.2 NVMe **1 TB**, ext4 `@/mnt/bitcoin` | Bind-mount into LXC |
 | Bitcoin pin | Knots **`v29.3.knots20260507`** (bundled; **default node is Core**, B15) | Non-RDTS (B4a); product `24.10.8.29.3` |
-| Bitcoin Core pin | **`v29.4`** (shipped selectable) | Shared datadir with Knots (B15–B17); user may install other releases (B19–B21, U11) |
+| Bitcoin Core pin | **`v29.5`** (factory default; replaces an older factory pin on the M.2 at boot) | Shared datadir with Knots (B15–B17); user may install other releases (B19–B21, U11) |
 | Node UI | **nginx** on OpenWrt | HTTPS `:443` (HTTP `:80`→HTTPS) → RPC `21.21.21.21:8332` |
 | LuCI | **uhttpd** on OpenWrt | `:8080` / `:8443` (linked from dashboard) |
 | Bring-up (prod) | **eMMC boot** (R5) | SD = factory/lab install only (R5a); SD GPT production matches eMMC (**R5b**, `ROOTFS_PARTSIZE_MIB`) |

@@ -55,7 +55,7 @@ st=$(KNOTS_RELEASE_KEYS="$W/abkeys" KNOTS_USIGN="$H/usign" KNOTS_FWTOOL="$H/fwto
 pass "offline tools stick: self-contained usign + fwtool, keys A/B with self-test, only public keys on the stick, signs a release"
 
 # a fake published build (version from version.env)
-OV=$(sed -n 's/^OPENWRT_VER := //p' "$ROOT/build/version.env"); KV=$(sed -n 's/^KNOTS_VER := //p' "$ROOT/build/version.env")
+OV=$(sed -n 's/^OPENWRT_VER := //p' "$ROOT/build/version.env"); KV=$(sed -n 's/^CORE_VER := //p' "$ROOT/build/version.env")
 BN=$(sed -n 's/^BUILD_NUM := //p' "$ROOT/build/version.env"); PRE="bpi-r4-phase2-$OV.$KV.$BN"
 mkdir -p "$W/out"
 head -c 300000 /dev/urandom >"$W/out/$PRE-squashfs-sysupgrade.itb"

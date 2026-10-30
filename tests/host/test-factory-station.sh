@@ -98,7 +98,7 @@ PYT
 pass "console login on a simulated router: factory password installs the exact key and logs out; wrong password installs nothing; pre-.99 auto-login works"
 
 # bundle (needs a built SD image)
-OV=$(sed -n 's/^OPENWRT_VER := //p' "$ROOT/build/version.env"); KV=$(sed -n 's/^KNOTS_VER := //p' "$ROOT/build/version.env")
+OV=$(sed -n 's/^OPENWRT_VER := //p' "$ROOT/build/version.env"); KV=$(sed -n 's/^CORE_VER := //p' "$ROOT/build/version.env")
 BN=$(sed -n 's/^BUILD_NUM := //p' "$ROOT/build/version.env"); VER="$OV.$KV.$BN"
 if [ -f "$ROOT/bin/targets/mediatek/filogic/bpi-r4-phase2-$VER-sdcard.img.gz" ]; then
 	sh "$ROOT/factory/make-station-bundle.sh" "$W/bundle" >/dev/null || fail "make-station-bundle"
