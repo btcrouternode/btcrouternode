@@ -32,9 +32,14 @@ Review happens in public on the pull request. Say what you checked:
 ## Merging
 
 Only the [maintainers](MAINTAINERS.md) merge. They merge on their own
-computer with a **PGP-signed merge commit** and push it; `main` takes no other
-pushes. Every merge on `main` must be signed by a key in
-`keys/maintainers/trusted-keys`.
+computer with `contrib/merge-pr.sh <number>`, which checks every commit's
+Signed-off-by, merges, runs the tests, has the maintainer sign the **merge
+commit with their PGP key** and pushes it; `main` takes no other pushes.
+
+Every commit on `main` and every release tag must be signed by a key in
+`keys/maintainers/trusted-keys`. Anyone can check this with
+`contrib/verify-commits/verify-commits.sh`; GitHub runs the same check after
+every push and once a day.
 
 ## Not in this repository
 

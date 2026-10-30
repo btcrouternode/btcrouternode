@@ -238,6 +238,7 @@ test-host:
 	$(ROOT)/tests/host/test-http-setup-iue.sh
 	$(ROOT)/tests/host/test-urldecode.sh
 	$(ROOT)/tests/host/test-uat-web.sh
+	$(ROOT)/tests/host/test-verify-commits.sh
 	$(ROOT)/tests/host/run-iue.sh
 	@echo "=== test-host PASSED ==="
 

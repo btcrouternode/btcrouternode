@@ -1,0 +1,3 @@
+# Merge commits on main allowed to carry changes of their own (a conflict
+# resolved by the maintainer while merging). One full commit hash per line,
+# added in a commit signed by a maintainer, with the reason in that commit.

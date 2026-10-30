@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# After every push to main or a release tag, and once a day: main and the
+# release tags must be exactly what the maintainers signed
+# (contrib/verify-commits/verify-commits.sh). Read-only, no third-party actions.
+name: verify-commits
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-commits:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Fetch main, the release tags and the pushed commit
+        env:
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          git init -q src
+          cd src
+          git remote add origin "https://github.com/$REPO.git"
+          git fetch -q --tags origin "+refs/heads/main:refs/remotes/origin/main" "$SHA"
+          git checkout -q --detach "$SHA"
+      - name: Check signatures on main and the release tags
+        working-directory: src
+        run: contrib/verify-commits/verify-commits.sh
