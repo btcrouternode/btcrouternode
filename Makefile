@@ -196,6 +196,7 @@ test-host:
 	$(ROOT)/tests/host/test-node-bin-install.sh
 	$(ROOT)/tests/host/test-node-core-seed-ui.sh
 	$(ROOT)/tests/host/test-node-factory-refresh.sh
+	$(ROOT)/tests/host/test-knots-advisory.sh
 	$(ROOT)/tests/host/test-node-busy-status.sh
 	$(ROOT)/tests/host/test-http-https-redirect.sh
 	$(ROOT)/tests/host/test-nginx-conf.sh

@@ -104,12 +104,39 @@
     }
   }
 
+  /* Installed Knots version, for the known-issue check (node-advisory.js). */
+  var knotsVersion = "";
+
+  function renderAdvisory(act) {
+    var box = $("knotsAdvisory");
+    var adv = window.KnotsNodeAdvisory;
+    var a = adv && adv.forImpl("knots", knotsVersion);
+    if (!box) return;
+    if (!a || act !== "knots") {
+      box.hidden = true;
+      return;
+    }
+    box.textContent = "";
+    var strong = document.createElement("strong");
+    strong.textContent = a.title + ". ";
+    box.appendChild(strong);
+    box.appendChild(document.createTextNode(a.lines[0] + " " + a.lines[2] + " "));
+    var link = document.createElement("a");
+    link.href = a.url;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = "Advisory";
+    box.appendChild(link);
+    box.hidden = false;
+  }
+
   function render(d) {
-    var act = d.active || "knots";
+    var act = d.active || "core";
+    knotsVersion = (d.knots && d.knots.installed && d.knots.version) || "";
     $("active").textContent = act === "core" ? "Bitcoin Core" : "Bitcoin Knots";
     if ($("factoryDefault")) {
       $("factoryDefault").textContent =
-        (d.default || "knots") === "core" ? "Bitcoin Core" : "Bitcoin Knots";
+        (d.default || "core") === "core" ? "Bitcoin Core" : "Bitcoin Knots";
     }
     $("knotsVer").textContent = d.knots && d.knots.installed ? d.knots.version : "not installed";
     $("coreVer").textContent = d.core && d.core.installed ? d.core.version : "not installed";
@@ -126,10 +153,11 @@
       banner(
         "Active implementation follows the M.2 preference (" +
           (act === "core" ? "Core" : "Knots") +
-          "). Factory default remains Knots until you switch.",
+          "). The factory default is Bitcoin Core.",
         false
       );
     }
+    renderAdvisory(act);
     if (window.KnotsBrand) window.KnotsBrand.apply(act);
   }
 
@@ -212,6 +240,25 @@
       banner("Acknowledge the wallet backup warning before switching.", true);
       return;
     }
+    /* Known issue in the installed Knots (node-advisory.js): warn first. */
+    var adv = window.KnotsNodeAdvisory;
+    if (impl === "knots" && adv && adv.forImpl("knots", knotsVersion)) {
+      $("btnApply").disabled = true;
+      adv.confirmChoice("knots", knotsVersion).then(function (goAhead) {
+        $("btnApply").disabled = false;
+        if (!goAhead) {
+          $("rCore").checked = true;
+          banner("Switch cancelled — Bitcoin Core (recommended) is selected.", false);
+          return;
+        }
+        applySwitch(impl, confirmTok, auth);
+      });
+      return;
+    }
+    applySwitch(impl, confirmTok, auth);
+  };
+
+  function applySwitch(impl, confirmTok, auth) {
     if (
       !confirmPopup("Switch node software to " + impl + "?", [
         "The blockchain on the M.2 is kept (not wiped).",
@@ -253,7 +300,7 @@
         $("btnApply").disabled = false;
         banner(String(e), true);
       });
-  };
+  }
 
   $("btnInstall").onclick = function () {
     var impl = $("installImpl").value;

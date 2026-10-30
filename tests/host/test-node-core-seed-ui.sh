@@ -48,7 +48,7 @@ grep -q 'Bitcoin Node - Running' "$ROOT/files/www/knots/shell.js"
 grep -q 'onNodeSoftwarePage()' "$ROOT/files/www/knots/shell.js"
 grep -q 'if (onNodeSoftwarePage()) {' "$ROOT/files/www/knots/shell.js"
 grep -q 'seed_factory_impl core' "$ROOT/files/usr/libexec/knots/node-impl.sh"
-grep -q 'Bitcoin Node - Running Bitcoin Knots' "$ROOT/files/www/knots/node.html"
+grep -q 'Bitcoin Node - Running Bitcoin Core' "$ROOT/files/www/knots/node.html"
 
 # LXC bake still ships Core pin (baseline image content — not BB1 overwrite).
 # C4: tags/SHA256 pins live in build/version.env; rootfs-build.sh reads them
