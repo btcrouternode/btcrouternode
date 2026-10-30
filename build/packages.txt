@@ -1,0 +1,56 @@
+luci
+luci-ssl
+luci-i18n-base-es
+luci-i18n-base-de
+luci-i18n-base-fr
+luci-i18n-base-zh-cn
+luci-i18n-base-ja
+luci-i18n-base-pt-br
+zoneinfo-core
+zoneinfo-europe
+zoneinfo-america
+zoneinfo-asia
+zoneinfo-africa
+zoneinfo-australia-nz
+zoneinfo-pacific
+zoneinfo-atlantic
+zoneinfo-indian
+block-mount
+e2fsprogs
+parted
+blkid
+curl
+ca-bundle
+kmod-nvme
+# M.2 health: SMART/Health log (disk-health.sh); pulls libnvme, ~1.3 MB
+nvme-cli
+# weekly TRIM of the M.2 (m2-trim.sh), ~33 KB
+fstrim
+lsblk
+openssl-util
+lxc
+lxc-start
+lxc-stop
+lxc-attach
+lxc-info
+lxc-ls
+lxc-common
+lxc-configs
+lxc-hooks
+lxc-init
+lxc-wait
+lxc-cgroup
+kmod-veth
+kmod-br-netfilter
+ip-full
+zstd
+nginx-ssl
+# mDNS: D-Bus variant so the unit name can be published as an alias without a
+# reverse record (avahi-publish -R, knots-mdns-alias) — the static hosts file
+# collides with rnode.local (.103)
+avahi-dbus-daemon
+avahi-utils
+dbus
+# MT7916 Wi-Fi 6 M.2 (PCI 14c3:7906 / Filogic 630) — lab card; MT7996 remains via BPI-R4 profile
+kmod-mt7915e
+kmod-mt7916-firmware

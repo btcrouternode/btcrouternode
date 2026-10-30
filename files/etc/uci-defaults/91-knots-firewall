@@ -1,0 +1,10 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# First-boot firewall baseline — single source in factory/apply-firewall.sh
+# (also used by factory reset; review N5). Idempotent: re-running after a
+# keep-settings upgrade resets only the appliance's own named sections and,
+# on a configured unit, keeps the owner's LAN-wallet RPC choice (U3).
+if [ -f /etc/knots/setup-complete ]; then
+	exec /usr/libexec/knots/factory/apply-firewall.sh --keep-owner
+fi
+exec /usr/libexec/knots/factory/apply-firewall.sh

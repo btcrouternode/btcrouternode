@@ -1,0 +1,73 @@
+#!/bin/sh /etc/rc.common
+# SPDX-License-Identifier: GPL-2.0-only
+# Ensure TLS + nginx for https://rnode.local/ (Knots dashboard)
+
+START=95
+STOP=15
+
+boot() {
+	start
+}
+
+start() {
+	# R14/U13 — pull new Settings/Setup/UI from /rom after sysupgrade (overlay may be stale)
+	if [ -x /usr/libexec/knots/image-sync.sh ]; then
+		/usr/libexec/knots/image-sync.sh run || true
+	fi
+
+	# Phase 2 posture (W5/M6) — Phase-3 modules (wallet/ext-RPC/lightning/privacy) stay off
+	if [ -x /usr/libexec/knots/phase2-posture.sh ]; then
+		/usr/libexec/knots/phase2-posture.sh >/dev/null 2>&1 || true
+		logger -t knots-node-ui "phase2-posture applied (Phase 3 modules disabled)"
+	fi
+
+	/usr/libexec/knots/node-ui-tls.sh node-router || true
+	/usr/libexec/knots/ui-ports.sh || true
+
+	# uhttpd CGI stubs + handlers must be executable (F23)
+	chmod 755 /usr/libexec/knots/wallet-cgi/api/* 2>/dev/null || true
+	chmod 755 /usr/libexec/knots/node-impl.sh \
+		/usr/libexec/knots/node-impl-api.sh \
+		/usr/libexec/knots/settings-api.sh \
+		/usr/libexec/knots/setup-api.sh \
+		/usr/libexec/knots/setup-lib.sh \
+		/usr/libexec/knots/bitcoind-ctl.sh \
+		/usr/libexec/knots/cgi-lib.sh \
+		/usr/libexec/knots/bitcoin-conf-lib.sh \
+		/usr/libexec/knots/phase2-posture.sh \
+		/usr/libexec/knots/image-sync.sh 2>/dev/null || true
+
+	# B21 — long install uploads
+	if [ -f /etc/config/uhttpd ]; then
+		uci -q set uhttpd.walletapi.script_timeout='900'
+		uci -q set uhttpd.walletapi.network_timeout='900'
+		uci -q commit uhttpd
+	fi
+
+	mkdir -p /etc/nginx/conf.d
+	if [ -f /etc/nginx/conf.d/knots-ui.conf ]; then
+		:
+	elif [ -f /rom/etc/nginx/conf.d/knots-ui.conf ]; then
+		cp /rom/etc/nginx/conf.d/knots-ui.conf /etc/nginx/conf.d/knots-ui.conf
+	fi
+
+	if [ -f /etc/nginx/nginx.conf ] && ! grep -q 'conf.d/\*\.conf' /etc/nginx/nginx.conf 2>/dev/null; then
+		if grep -q 'http {' /etc/nginx/nginx.conf; then
+			sed -i '/http {/a\	include /etc/nginx/conf.d/*.conf;' /etc/nginx/nginx.conf 2>/dev/null || true
+		fi
+	fi
+
+	mkdir -p /tmp/knots /www/knots
+	[ -x /etc/init.d/nginx ] && /etc/init.d/nginx enable 2>/dev/null || true
+	# Reload if running, start if not — never restart (drops connections).
+	/usr/libexec/knots/nginx-apply.sh || true
+
+	[ -x /etc/init.d/knots-status ] && /etc/init.d/knots-status enable 2>/dev/null || true
+	[ -x /etc/init.d/knots-status ] && /etc/init.d/knots-status start 2>/dev/null || true
+
+	logger -t knots-node-ui "Knots dashboard start attempted on :80/:443"
+}
+
+stop() {
+	[ -x /etc/init.d/knots-status ] && /etc/init.d/knots-status stop 2>/dev/null || true
+}

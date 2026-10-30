@@ -1,0 +1,11 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# First-boot network baseline — single source in factory/apply-network.sh.
+# U3/N4 (review 2026-10-11): OpenWrt re-runs uci-defaults after every
+# keep-settings sysupgrade. On a configured unit (setup-complete is kept via
+# keep.d) only the product topology is (re)applied; the owner's LAN IP, DHCP
+# range, hostname and timezone are left alone.
+if [ -f /etc/knots/setup-complete ]; then
+	exec /usr/libexec/knots/factory/apply-network.sh --topology-only
+fi
+exec /usr/libexec/knots/factory/apply-network.sh

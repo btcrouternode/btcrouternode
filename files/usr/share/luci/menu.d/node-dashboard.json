@@ -1,0 +1,14 @@
+{
+	"admin/node-dashboard": {
+		"title": "Node Dashboard",
+		"order": 90,
+		"action": {
+			"type": "function",
+			"module": "luci.controller.admin.node_dashboard",
+			"function": "action_exit"
+		},
+		"depends": {
+			"acl": [ "luci-base" ]
+		}
+	}
+}

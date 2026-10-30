@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-2.0-only -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trust this router — Bitcoin Node</title>
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="app.css" />
+  <script defer src="shell.js?v=96a"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="brand">
+      <p class="eyebrow">BPI-R4 appliance</p>
+      <h1>Bitcoin Node</h1>
+      <p class="tagline">One-time HTTPS trust — then no browser warnings.</p>
+    </header>
+
+    <!-- Phones and tablets (owner decision 2026-10-25): the secure connection
+         is set up from a laptop or computer — Android and iOS only accept the
+         certificate through several Settings screens. -->
+    <section class="panel" id="tlsPhoneOnly" hidden>
+      <h2>Please use a laptop or computer</h2>
+      <p class="muted">The secure connection to this router is set up from a <strong>laptop or computer</strong>
+        (Windows, Mac or Linux). Phones and tablets can’t do that easily.</p>
+    </section>
+
+    <section class="tls-page panel" id="tlsMain">
+      <!-- "Add this computer" (owner, 2026-10-26): reached from the router's
+           plain address on a computer that does not trust it yet. -->
+      <div id="addIntro" hidden>
+        <h2>Add this computer</h2>
+        <p>This computer does not have a <strong>secure connection</strong> to your router yet.
+          It takes about a minute: click <strong>Enable Secure Connection</strong> and follow the steps below.
+          This page carries on to your router by itself when it is done.</p>
+      </div>
+      <p class="muted" id="addChecking" hidden>Checking whether this computer already has a secure connection…</p>
+      <p class="tls-outcome">
+        <strong>This removes the browser warning.</strong>
+        After you trust this router on your device,
+        <span class="mono">https://rnode.local/</span> opens like a normal site.
+        Detected: <strong id="tlsOsLabel">…</strong>
+      </p>
+
+      <p class="tls-callout" id="tlsDownloadTip">
+        <strong>Important — downloads:</strong>
+        After you tap the orange button, look near the <strong>top of the browser</strong>
+        (or the downloads arrow).
+        If the browser asks to <strong>Allow</strong>, <strong>Save</strong>, or <strong>Keep</strong> the file
+        (this is common in <strong>Firefox</strong>), you <strong>must click that</strong> —
+        otherwise the file never finishes downloading.
+      </p>
+
+      <p class="tls-actions">
+        <a class="btn btn-accent" id="tlsPrimaryCta" href="/knots-ca.crt">1. Download</a>
+        <a class="btn" id="tlsTryHttps" href="https://rnode.local/">Try HTTPS</a>
+      </p>
+      <p class="muted" id="tlsPrimaryHint"></p>
+
+      <div class="tls-panel" data-os="windows" hidden>
+        <h2>Windows</h2>
+        <ol class="tls-steps">
+          <li>Click the orange <strong>Enable Secure Connection</strong> button.</li>
+          <li>If your browser asks about the download, click <strong>Keep</strong>
+            (Edge: click <strong>⋯</strong> next to the file, then <strong>Keep</strong>).</li>
+          <li>Click the file <strong class="mono">install-bitcoin-node-trust.bat</strong> in the browser’s downloads list.</li>
+          <li>Windows asks whether to run it — click <strong>Run</strong>.
+            (A blue box “Windows protected your PC”? Click <strong>More info</strong>, then <strong>Run anyway</strong>.)</li>
+          <li>Windows asks “Do you want to allow this app to make changes?” — click <strong>Yes</strong>.</li>
+          <li>The secure Setup page opens by itself and the black window closes on its own.</li>
+        </ol>
+      </div>
+
+      <div class="tls-panel" data-os="mac" hidden>
+        <h2>macOS</h2>
+        <ol class="tls-steps">
+          <li>Click the orange <strong>Enable Secure Connection</strong> button.</li>
+          <li>When the browser asks to open <strong>Script Editor</strong>, click <strong>Allow</strong>.</li>
+          <li>In Script Editor click <strong>▶ Run</strong> (top left).</li>
+          <li>When your Mac asks for <strong>your password</strong>, type it and click <strong>Update Settings</strong>.
+            The secure page opens by itself. Close Script Editor without saving.</li>
+        </ol>
+      </div>
+
+      <div class="tls-panel" data-os="linux" hidden>
+        <h2>Linux (Ubuntu, Debian, Mint)</h2>
+        <ol class="tls-steps">
+          <li>Click the orange <strong>Enable Secure Connection</strong> button.</li>
+          <li>Click the downloaded file <strong class="mono">rnode-secure-connection.deb</strong>
+            (Firefox: the downloads arrow, top right). <strong>App Center</strong> opens — click <strong>Install</strong>.</li>
+          <li>Type <strong>your computer password</strong> and click <strong>Authenticate</strong>.</li>
+          <li>Your browser reopens on the secure Setup page by itself (Firefox closes for a moment first).
+            If it does not, close the browser and open it again.</li>
+        </ol>
+      </div>
+
+      <p class="muted" id="tlsOsOtherWrap" hidden>
+        <button type="button" class="btn" id="tlsOsOtherBtn">Using a different computer?</button>
+      </p>
+      <div class="tls-os-tabs" id="tlsOsTabs" role="tablist" aria-label="Operating system" hidden>
+        <button type="button" data-os="windows" role="tab">Windows</button>
+        <button type="button" data-os="mac" role="tab" hidden>macOS</button>
+        <button type="button" data-os="linux" role="tab">Linux</button>
+      </div>
+
+      <p class="muted">
+        Public certificates are not available for a home LAN IP.
+        This local trust step is the supported path. A factory reflash creates a new CA — repeat once if HTTPS warns again.
+      </p>
+    </section>
+  </div>
+  <script src="tls-os.js?v=113a"></script>
+  <script>
+  (function () {
+    if (window.KnotsTlsOs && window.KnotsTlsOs.isPhoneOrTablet()) {
+      document.getElementById("tlsMain").hidden = true;
+      document.getElementById("tlsPhoneOnly").hidden = false;
+      return;
+    }
+    if (window.KnotsTlsOs) window.KnotsTlsOs.bindOsTabs({ detectedOnly: true });
+
+    /* "Add this computer": on plain HTTP, check quietly whether this computer
+       already trusts the router (an https request only succeeds with a
+       trusted certificate). Yes → straight on to the secure pages; no → the
+       steps; after Enable Secure Connection, keep checking and carry on. */
+    var host = window.KnotsIue ? window.KnotsIue.host() : (location.hostname || "rnode.local");
+    var secure = "https://" + host + "/";
+    var tryBtn = document.getElementById("tlsTryHttps");
+    if (tryBtn) tryBtn.href = secure;
+    if (location.protocol !== "http:") return;
+    function trusted() {
+      return fetch("https://" + host + "/api/status?_=" + Date.now(), { mode: "no-cors", cache: "no-store" })
+        .then(function () { return true; }, function () { return false; });
+    }
+    var checking = document.getElementById("addChecking");
+    var intro = document.getElementById("addIntro");
+    if (checking) checking.hidden = false;
+    trusted().then(function (ok) {
+      if (ok) { location.replace(secure); return; }
+      if (checking) checking.hidden = true;
+      if (intro) intro.hidden = false;
+      var timer = null;
+      function watch() {
+        if (timer) return;
+        timer = setInterval(function () {
+          trusted().then(function (ok2) { if (ok2) location.replace(secure); });
+        }, 3000);
+      }
+      document.addEventListener("click", function (e) {
+        var a = e.target && e.target.closest ? e.target.closest("a.btn, .copyable") : null;
+        if (a) watch();
+      });
+    });
+  })();
+  </script>
+</body>
+</html>

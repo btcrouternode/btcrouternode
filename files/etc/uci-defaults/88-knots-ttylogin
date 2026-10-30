@@ -1,0 +1,12 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# Serial console asks for the router (root) password (owner decision
+# 2026-10-22). OpenWrt's login.sh logs the console straight in as root unless
+# system.@system[0].ttylogin=1 — a root shell for anyone who opens the case.
+# Runs again from /rom after every sysupgrade; idempotent. Factory tooling
+# drives U-Boot over serial and Linux over SSH, so it never needs this login.
+# Recovery when the password is lost: the reset button (factory reset) or
+# OpenWrt failsafe at boot.
+uci -q set system.@system[0].ttylogin='1'
+uci -q commit system
+exit 0

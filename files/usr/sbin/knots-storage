@@ -1,0 +1,17 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# Thin CLI wrapper — prepare only (REQUIREMENTS S7: no on-device wipe).
+
+case "$1" in
+	prepare)
+		exec /usr/libexec/knots/storage-prepare.sh
+		;;
+	wipe|repartition|reformat)
+		echo "refusing: on-device M.2 wipe retired (S7) — use factory imaging" >&2
+		exit 1
+		;;
+	*)
+		echo "Usage: knots-storage prepare" >&2
+		exit 2
+		;;
+esac

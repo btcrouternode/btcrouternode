@@ -1,0 +1,26 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# Local-only uhttpd CGI for wallet API (proxied by nginx). P2B-A / W7.
+
+set -e
+
+uci -q delete uhttpd.walletapi || true
+uci set uhttpd.walletapi=uhttpd
+uci set uhttpd.walletapi.home='/usr/libexec/knots/wallet-cgi'
+uci set uhttpd.walletapi.cgi_prefix='/api'
+uci set uhttpd.walletapi.listen_http='127.0.0.1:21444'
+uci set uhttpd.walletapi.rfc1918_filter='0'
+uci set uhttpd.walletapi.max_requests='5'
+# Install uploads can take several minutes (B21)
+uci set uhttpd.walletapi.script_timeout='900'
+uci set uhttpd.walletapi.network_timeout='900'
+uci set uhttpd.walletapi.http_keepalive='0'
+uci commit uhttpd
+
+# uhttpd only executes CGI with +x; Image Builder / overlay copy can drop mode bits
+chmod 755 /usr/libexec/knots/wallet-cgi/api/* 2>/dev/null || true
+chmod 755 /usr/libexec/knots/node-impl-api.sh 2>/dev/null || true
+
+[ -x /etc/init.d/uhttpd ] && /etc/init.d/uhttpd enable || true
+
+exit 0

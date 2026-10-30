@@ -1,0 +1,108 @@
+{#
+ Copyright 2022 Jo-Philipp Wich <jo@mein.io>
+ Licensed to the public under the Apache License 2.0.
+ BPI-R4: Node Dashboard return under login modal (U1a) — marker: knots-node-return
+-#}
+
+{% include('header', { blank_page: true }) %}
+
+<section hidden>
+	<form method="post" class="cbi-map">
+		<div class="cbi-section">
+			<div class="cbi-section-node">
+				<div class="cbi-value">
+					<label class="cbi-value-title" for="luci_username">{{ _('Username') }}</label>
+					<div class="cbi-value-field">
+						<input name="luci_username" id="luci_username" type="text" autocomplete="username" value="{{ entityencode(duser, true) }}">
+					</div>
+				</div>
+				<div class="cbi-value">
+					<label class="cbi-value-title" for="luci_password">{{ _('Password') }}</label>
+					<div class="cbi-value-field">
+						<input name="luci_password" id="luci_password" type="password" autocomplete="current-password">
+					</div>
+				</div>
+			</div>
+		</div>
+	</form>
+
+	<hr>
+
+	{% if (fuser): %}
+	<div class="alert-message error">
+		{{ _('Invalid username and/or password! Please try again.') }}
+	</div>
+	{% endif %}
+
+	<button class="btn cbi-button-positive important">{{ _('Log in') }}</button>
+</section>
+
+<div id="view">
+	<div class="spinning">{{ _('Loading view…') }}</div>
+	<script>
+		L.require('ui').then(function(ui) {
+			ui.instantiateView('bootstrap.sysauth');
+		});
+	</script>
+</div>
+
+{# knots-node-return: outside section so it is NOT inside the login modal frame #}
+<style id="knots-login-return-style" type="text/css">
+/* Inline so styles apply even if cascade @import is ignored */
+#modal_overlay > #knots-login-return {
+	display: block !important;
+	box-sizing: border-box !important;
+	text-align: center !important;
+	margin: 12px auto 40px !important;
+	padding: 0 !important;
+	position: relative !important;
+	z-index: 901 !important;
+}
+#modal_overlay > #knots-login-return a {
+	display: block !important;
+	width: 100% !important;
+	text-align: center !important;
+	color: #ffe8c4 !important;
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+	font-size: 16px !important;
+	font-weight: 700 !important;
+	line-height: 36px !important;
+	text-decoration: underline !important;
+	text-underline-offset: 4px !important;
+}
+</style>
+<script type="text/javascript">
+(function () {
+	var HREF = 'https://' + (function () { var h = (location.hostname || '').toLowerCase(); return /^(rnode\.local|rnode-[0-9a-f]{4}\.local|node-router|knots-router)$|^(10|127)\.\d{1,3}\.\d{1,3}\.\d{1,3}$|^192\.168\.\d{1,3}\.\d{1,3}$|^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(h) ? h : 'rnode.local'; })() + '/';
+	var ID = 'knots-login-return';
+	function place() {
+		var modal = document.querySelector('#modal_overlay > .modal.login');
+		if (!modal || !modal.parentNode) return false;
+		var el = document.getElementById(ID);
+		if (!el) {
+			el = document.createElement('div');
+			el.id = ID;
+			el.setAttribute('role', 'navigation');
+			var a = document.createElement('a');
+			a.href = HREF;
+			a.textContent = '\u2190 Node Dashboard';
+			el.appendChild(a);
+			modal.parentNode.insertBefore(el, modal.nextSibling);
+		}
+		/* Match modal box width so the label centers under Log in */
+		var w = modal.offsetWidth || 0;
+		if (w > 0) {
+			el.style.width = w + 'px';
+			el.style.maxWidth = w + 'px';
+		}
+		return true;
+	}
+	var n = 0;
+	var t = setInterval(function () {
+		place();
+		if (++n > 80) clearInterval(t);
+	}, 50);
+})();
+</script>
+
+{% include('footer', { blank_page: true }) %}

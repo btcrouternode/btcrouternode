@@ -1,0 +1,4 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# N3 — restore system/router baseline; never wipe M.2 (S7).
+exec /usr/libexec/knots/factory-reset.sh "$@"

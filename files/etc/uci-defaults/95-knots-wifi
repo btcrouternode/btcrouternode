@@ -1,0 +1,7 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# R7/U6: bring up rnode AP on first boot (device-unique key).
+[ -x /usr/libexec/knots/wifi-default-enable.sh ] || exit 0
+/usr/libexec/knots/wifi-default-enable.sh || true
+[ -x /etc/init.d/knots-wifi ] && /etc/init.d/knots-wifi enable 2>/dev/null || true
+exit 0

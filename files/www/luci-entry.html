@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-2.0-only -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <title>Router settings — login required</title>
+  <style>
+    :root {
+      --bg: #f7f4ef;
+      --ink: #1a140c;
+      --muted: #6b5a45;
+      --teal: #f7931a;
+      --line: rgba(26, 20, 12, 0.28);
+      --font: "Trebuchet MS", "Segoe UI", "Gill Sans", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(900px 480px at 0% 0%, #ffe2b8 0%, transparent 55%),
+        radial-gradient(700px 400px at 100% 10%, #ffd09a 0%, transparent 50%),
+        var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.5rem;
+    }
+    .card {
+      width: min(460px, 100%);
+      padding: 2rem 1.75rem;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.82);
+    }
+    h1 { margin: 0 0 0.5rem; font-size: 1.55rem; letter-spacing: -0.02em; }
+    p { margin: 0 0 1rem; color: var(--muted); line-height: 1.45; }
+    .secure {
+      margin: 0 0 1.25rem;
+      padding: 0.75rem 0.85rem;
+      border-left: 4px solid var(--teal);
+      background: rgba(247, 147, 26, 0.14);
+      color: var(--ink);
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+    .actions { display: flex; flex-direction: column; gap: 0.65rem; }
+    a.btn {
+      display: block; text-align: center; text-decoration: none;
+      padding: 0.9rem 1rem; border: 2px solid var(--line); color: var(--ink);
+      font-weight: 700;
+    }
+    a.btn:hover { border-color: var(--teal); }
+    a.btn-primary { background: var(--teal); color: #fffaf4; border-color: var(--teal); }
+    a.btn-secondary { background: #fff; }
+    .note { margin-top: 1.25rem; font-size: 0.85rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Router settings (LuCI)</h1>
+    <p class="secure">
+      Admin login is required. This page is not LuCI — it only routes you to login
+      or back to the Bitcoin node dashboard.
+    </p>
+    <p>
+      If you opened this by mistake, return to the node status page (no router password needed there).
+    </p>
+    <div class="actions">
+      <a class="btn btn-primary" id="toNode" href="https://rnode.local/">← Back to Node Dashboard</a>
+      <a class="btn btn-secondary" id="toLuci" href="https://rnode.local:8443/cgi-bin/luci/">Continue to LuCI login</a>
+    </div>
+    <p class="note">Default testing password is documented in the product guide (R13). WAN management stays blocked.</p>
+  </div>
+  <script>
+    (function () {
+      /* D2: keep the host the browser used (names / private IPv4). */
+      var h = (function () { var h = (location.hostname || "").toLowerCase(); return /^(rnode\.local|rnode-[0-9a-f]{4}\.local|node-router|knots-router)$|^(10|127)\.\d{1,3}\.\d{1,3}\.\d{1,3}$|^192\.168\.\d{1,3}\.\d{1,3}$|^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(h) ? h : "rnode.local"; })();
+      var a = document.getElementById("toNode");
+      if (a) a.href = "https://" + h + "/";
+      var l = document.getElementById("toLuci");
+      if (l) l.href = "https://" + h + ":8443/cgi-bin/luci/";
+    })();
+  </script>
+</body>
+</html>

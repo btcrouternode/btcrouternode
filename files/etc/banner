@@ -1,0 +1,7 @@
+-----------------------------------------------------------------------
+ BPI-R4 Bitcoin Node Appliance
+ Hostname: node-router
+ Build:    (from /etc/knots/product_version)
+ Active:   (set after M.2 mount — Knots or Core)
+ LAN:      https://rnode.local/  (Node UI)  LuCI :8443
+-----------------------------------------------------------------------

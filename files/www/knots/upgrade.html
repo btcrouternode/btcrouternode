@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-2.0-only -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <title>Firmware Update in Progress — Bitcoin Node</title>
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body class="setup-page upgrade-page">
+  <div class="shell">
+    <header class="brand">
+      <p class="eyebrow">BPI-R4 appliance</p>
+      <h1>Bitcoin Node</h1>
+      <p class="tagline">Firmware update</p>
+    </header>
+
+    <section class="panel upgrade-panel" aria-live="polite">
+      <h2 id="waitTitle">Firmware Update in Progress</h2>
+      <p class="upgrade-warn" id="waitWarn" role="alert">
+        Do NOT Power Cycle the router — update in progress
+      </p>
+      <p class="muted" id="waitCopy">
+        Keep this page open. In-place update has four steps — each bar fills
+        and marks Done before the next starts. Firmware write can take several
+        minutes. The blockchain on the M.2 is <strong>not</strong> wiped.
+        Your computer may show Ethernet or Wi-Fi as disconnected while the router
+        restarts — that is normal. Leave the cable plugged in; if Ubuntu turns LAN
+        off, click it back on. Do not power-cycle the router.
+      </p>
+      <div id="waitProgress" class="upgrade-progress upgrade-wait-progress">
+        <div class="upgrade-progress-label" id="waitProgressLabel">Firmware Update in Progress</div>
+        <div
+          class="upgrade-progress-track"
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+          id="waitProgressBar"
+          aria-label="Firmware update progress"
+        >
+          <div class="upgrade-progress-fill" id="waitProgressFill"></div>
+        </div>
+        <p class="upgrade-progress-detail mono" id="waitProgressDetail">Starting…</p>
+        <ol id="waitStepList" class="wait-steps" aria-label="Firmware update steps"></ol>
+      </div>
+      <p class="muted" id="waitHint">When this finishes, Node Status opens automatically.</p>
+    </section>
+  </div>
+  <script src="shell.js?v=96a"></script>
+  <script src="wait-handoff.js?v=92a"></script>
+  <script src="progress-wait.js?v=92a"></script>
+  <script src="upgrade.js?v=92a"></script>
+</body>
+</html>

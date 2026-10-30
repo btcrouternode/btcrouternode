@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# keep.d/knots — Knots appliance keep list
+# Knots appliance state preserved on Settings upgrade keep_config=1 (U13/U17).
+# OpenWrt stock keep.d (base-files-essential) already keeps /etc/shadow, /etc/config, …
+# Bug6 — explicit entries only: preserve user/operator state WITHOUT resurrecting
+# stale operational markers. ROM-shipped files (product_version, build_number,
+# versions.env, node-ui.env, lxc-config.in, overlay-ui/) are NOT kept — the new
+# image ships fresh copies and image-sync.sh refreshes them from /rom.
+# Note: uci-defaults whiteouts are NOT kept — 92-knots-password must be idempotent.
+# Format: comments on their own lines; entry lines carry the path only
+# (sysupgrade word-splits entry lines into find(1)).
+# UI language chosen in Setup/Settings (U19)
+/etc/knots/ui-lang
+# Knots/Core mirror of the M.2 choice (B15)
+/etc/knots/node-impl
+# regulatory country from the Setup locale step (U17/U19)
+/etc/knots/wifi-country
+# local CA + leaf — keep HTTPS trust across upgrade (N13)
+/etc/knots/tls/
+# first-run Setup done — do not re-gate IUE (U17)
+/etc/knots/setup-complete
+# password step done marker (U17)
+/etc/knots/setup-password-done
+# locale step done marker (U17)
+/etc/knots/setup-locale-done
+# S6 regen already ran — never re-delete wallets (H7a/B9)
+/etc/knots/identity-regen.done
+# default AP already applied — keeps the H3 exit-guard working across upgrade
+/etc/knots/wifi-default-done
+# device-unique default AP key — regeneration would mismatch the label
+/etc/knots/wifi.key
+# P1 per-device factory secret mirror (primary copy: U-Boot env knots_secret)
+/etc/knots/factory-secret
+# Deliberately NOT kept (stale operational markers):
+#   /etc/knots/factory-reset-pending — would force /reset.html after the upgrade
+#   /etc/knots/setup-lan-newip — stale deferred LAN-IP reboot state
+#   /etc/knots/first-boot.done / .image-synced — re-derived on boot if absent

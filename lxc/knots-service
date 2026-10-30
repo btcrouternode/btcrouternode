@@ -1,0 +1,137 @@
+#!/bin/sh
+# Start/stop active bitcoind (Knots default or Core). Bins on shared M.2 (B15/B17).
+set -e
+PIDFILE=/run/bitcoind.pid
+CONF=/etc/bitcoin/bitcoin.conf
+STATE=/mnt/bitcoin/.node-impl
+BINROOT=/mnt/bitcoin/node-bin
+MNT=/mnt/bitcoin
+
+m2_mounted() {
+	grep -q " $MNT " /proc/mounts 2>/dev/null || return 1
+	# M9/B15 — lxc.mount.entry create=dir binds host /mnt/bitcoin even when the
+	# NVMe is not mounted; the empty overlay dir then passes the /proc/mounts
+	# grep and .node-impl/chain data would land on the eMMC overlay. Require
+	# real disk content in the container view: storage markers (written by
+	# storage-prepare.sh / factory flash), or chain dirs as fallback signal.
+	[ -f "$MNT/.storage-prepared" ] && return 0
+	[ -f "$MNT/.factory-ready" ] && return 0
+	[ -d "$MNT/blocks" ] && return 0
+	[ -d "$MNT/bitcoin" ] && return 0
+	return 1
+}
+
+active_impl() {
+	# Inside LXC only M.2 is authoritative (host keeps /etc/knots backup).
+	# Do not create default state when unmounted — that would write onto overlay.
+	if ! m2_mounted; then
+		echo knots
+		return
+	fi
+	impl=$(cat "$STATE" 2>/dev/null || echo knots)
+	case "$impl" in
+		core) echo core ;;
+		*) echo knots ;;
+	esac
+}
+
+resolve_bins() {
+	impl=$(active_impl)
+	base="${BINROOT}/${impl}/bin"
+	if [ -x "${base}/bitcoind" ]; then
+		BITCOIND="${base}/bitcoind"
+		BITCOINCLI="${base}/bitcoin-cli"
+	elif [ -x "/usr/local/lib/bitcoin/${impl}/bin/bitcoind" ]; then
+		BITCOIND="/usr/local/lib/bitcoin/${impl}/bin/bitcoind"
+		BITCOINCLI="/usr/local/lib/bitcoin/${impl}/bin/bitcoin-cli"
+	else
+		BITCOIND=/usr/local/bin/bitcoind
+		BITCOINCLI=/usr/local/bin/bitcoin-cli
+	fi
+}
+
+running_pid() {
+	pidof bitcoind 2>/dev/null | awk '{print $1; exit}'
+}
+
+cmdline_of() {
+	tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null || true
+}
+
+# True if running bitcoind is the selected implementation binary.
+# Accept list must mirror resolve_bins (L-knots-service): node-bin path,
+# in-rootfs per-impl path, and (knots only) the legacy flat path — otherwise
+# a correct binary looks "mismatched" and gets restarted in a churn loop.
+correct_binary_running() {
+	pid=$(running_pid)
+	[ -n "$pid" ] || return 1
+	cmd=$(cmdline_of "$pid")
+	impl=$(active_impl)
+	echo "$cmd" | grep -q "node-bin/${impl}/bin/bitcoind" && return 0
+	echo "$cmd" | grep -q "/usr/local/lib/bitcoin/${impl}/bin/bitcoind" && return 0
+	# legacy flat path only acceptable for knots
+	[ "$impl" = knots ] && echo "$cmd" | grep -q "/usr/local/bin/bitcoind" && return 0
+	return 1
+}
+
+force_stop() {
+	resolve_bins
+	# Ask bitcoind to flush chainstate (graceful). Pulling the power cord skips this.
+	"$BITCOINCLI" -rpcconnect=21.21.21.21 -conf="$CONF" stop 2>/dev/null || true
+	i=0
+	while pidof bitcoind >/dev/null 2>&1; do
+		i=$((i + 1))
+		if [ "$i" -le 90 ]; then
+			# Up to ~90s for LevelDB/mempool flush after stop RPC
+			:
+		elif [ "$i" -le 105 ]; then
+			kill $(pidof bitcoind) 2>/dev/null || true
+		else
+			kill -9 $(pidof bitcoind) 2>/dev/null || true
+		fi
+		sleep 1
+		[ "$i" -ge 120 ] && break
+	done
+	rm -f "$PIDFILE"
+	pidof bitcoind >/dev/null 2>&1 && return 1
+	return 0
+}
+
+case "${1:-}" in
+	start)
+		if ! m2_mounted; then
+			echo "error: $MNT not mounted — refusing start (avoids wrong impl / overlay writes)" >&2
+			exit 1
+		fi
+		resolve_bins
+		mkdir -p /mnt/bitcoin /run
+		# Only create default when mounted and missing — never invent onto overlay
+		if [ ! -f "$STATE" ]; then
+			printf 'knots\n' >"$STATE"
+			sync "$STATE" 2>/dev/null || sync
+		fi
+		if correct_binary_running; then
+			echo "bitcoind already running ($(active_impl))"
+			exit 0
+		fi
+		# Wrong binary or stale process — replace
+		if pidof bitcoind >/dev/null 2>&1; then
+			echo "stopping mismatched/stale bitcoind"
+			force_stop || true
+		fi
+		rm -f "$PIDFILE"
+		echo "Bitcoin $(active_impl) starting ($BITCOIND)"
+		"$BITCOIND" -conf="$CONF" -daemon -pid="$PIDFILE"
+		;;
+	stop)
+		force_stop
+		echo "Bitcoin stopped"
+		;;
+	impl)
+		active_impl
+		;;
+	*)
+		echo "Usage: $0 start|stop|impl" >&2
+		exit 2
+		;;
+esac

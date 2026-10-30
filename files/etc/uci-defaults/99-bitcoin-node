@@ -1,0 +1,57 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# First-boot orchestration — storage then Knots LXC
+exec >/tmp/knots-first-boot.log 2>&1
+set -x
+
+mkdir -p /etc/knots /tmp/knots /mnt/bitcoin /srv/lxc
+
+if [ -x /usr/libexec/knots/storage-prepare.sh ]; then
+	/usr/libexec/knots/storage-prepare.sh || \
+		logger -t knots-firstboot "storage-prepare failed"
+fi
+
+if [ -f /mnt/bitcoin/.factory-ready ] && [ -x /usr/libexec/knots/identity-regen.sh ]; then
+	/usr/libexec/knots/identity-regen.sh || true
+fi
+
+# Start the node in the BACKGROUND. uci-defaults run inside S10boot: anything
+# that waits here holds back networking, Wi-Fi, DHCP and the web UI. knots-start
+# waits up to ~6 min for bitcoind's RPC (much longer when the chainstate replays
+# after a power cut) — found on .104: a labelled unit had no Wi-Fi and no Setup
+# for minutes after a power cycle. knots-start's own lock (M10) keeps the retry
+# below from running a second start at the same time.
+if [ -x /usr/libexec/knots/knots-start.sh ]; then
+	( /usr/libexec/knots/knots-start.sh start || \
+		logger -t knots-firstboot "knots-start failed (will retry later)" ) >/tmp/knots-start-first.log 2>&1 </dev/null &
+fi
+
+# F30 — persist node across every boot (not only this first-boot script)
+if [ -x /etc/init.d/knots ]; then
+	/etc/init.d/knots enable 2>/dev/null || true
+fi
+
+# R7/U6 — default rnode AP (device-unique key) if not yet enabled
+if [ -x /etc/init.d/knots-wifi ]; then
+	/etc/init.d/knots-wifi enable 2>/dev/null || true
+fi
+if [ -x /usr/libexec/knots/wifi-default-enable.sh ]; then
+	/usr/libexec/knots/wifi-default-enable.sh || \
+		logger -t knots-firstboot "wifi-default-enable failed"
+fi
+
+# Node UI :21443 (P3) — TLS + nginx + status JSON refresher
+if [ -x /etc/init.d/knots-node-ui ]; then
+	/etc/init.d/knots-node-ui enable 2>/dev/null || true
+	/etc/init.d/knots-node-ui start || \
+		logger -t knots-firstboot "knots-node-ui start failed"
+fi
+
+( sleep 20; /usr/libexec/knots/knots-start.sh start ) >/tmp/knots-start-retry.log 2>&1 &
+# Retry only if the web stack is not up yet — a second full start just after
+# Setup is reachable used to restart nginx under the browser (.92 UAT-UR-2).
+( sleep 25; pidof nginx >/dev/null 2>&1 || /etc/init.d/knots-node-ui start ) >/tmp/knots-node-ui-retry.log 2>&1 &
+
+touch /etc/knots/first-boot.done
+logger -t knots-firstboot "first-boot orchestration complete"
+exit 0

@@ -1,0 +1,5 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# U18 — LuCI / CLI reboot must stop the Bitcoin node first.
+/usr/libexec/knots/pre-reboot-stop.sh || true
+exec /bin/busybox reboot "$@"

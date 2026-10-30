@@ -1,0 +1,244 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * LuCI bootstrap skin — match Node Status / Setup palette (U1b).
+ * Inlined into cascade.css by ui-ports.sh (trailing @import is ignored).
+ * Accent = Bitcoin orange #F7931A; warm parchment light / deep brown dark.
+ */
+
+/* —— Colour tokens (override LuCI :root HSL + primary) —— */
+:root {
+  --background-color-delta-l-sign: -1;
+  --background-color-h: 36;
+  --background-color-s: 33%;
+  --background-color-l: 95.3%; /* #f7f4ef */
+  --text-color-delta-l-sign: 1;
+  --text-color-h: 30;
+  --text-color-s: 37%;
+  --text-color-l: 7.5%; /* #1a140c */
+  --border-color-delta-l-sign: -1;
+  --primary-color-high: #f7931a;
+  --primary-color-medium: #e08615;
+  --primary-color-low: #c96a00;
+  --on-primary-color: #fffaf4;
+  --success-color-high-rgb: 21, 128, 61;
+  --success-color-high: #15803d;
+  --success-color-medium: #166534;
+  --success-color-low: #14532d;
+  --on-success-color: #fffaf4;
+  --warn-color-high: #e67e22;
+  --warn-color-medium: #f7931a;
+  --warn-color-low: #ffb04a;
+  --on-warn-color: #1a140c;
+  --focus-color-rgb: 247, 147, 26;
+  color-scheme: light;
+}
+
+:root[data-darkmode="true"] {
+  --background-color-delta-l-sign: 1;
+  --background-color-h: 30;
+  --background-color-s: 28%;
+  --background-color-l: 5.5%; /* #120e0a */
+  --text-color-delta-l-sign: -1;
+  --text-color-h: 30;
+  --text-color-s: 33%;
+  --text-color-l: 92%; /* #f5ebe0 */
+  --border-color-delta-l-sign: 1;
+  --primary-color-high: #ffb04a;
+  --primary-color-medium: #f7931a;
+  --primary-color-low: #c96a00;
+  --on-primary-color: #1a140c;
+  --success-color-high-rgb: 74, 222, 128;
+  --success-color-high: #4ade80;
+  --success-color-medium: #22c55e;
+  --success-color-low: #16a34a;
+  --on-success-color: #0a0806;
+  --warn-color-high: #ffb04a;
+  --warn-color-medium: #f7931a;
+  --warn-color-low: #c96a00;
+  --on-warn-color: #1a140c;
+  --focus-color-rgb: 255, 176, 74;
+  color-scheme: dark;
+}
+
+/* Warm parchment page (Node Status atmosphere) */
+body {
+  font-family: "Gill Sans", "Trebuchet MS", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(1100px 520px at -5% -10%, #ffe2b8 0%, transparent 55%),
+    radial-gradient(900px 480px at 105% 0%, #ffd09a 0%, transparent 50%),
+    linear-gradient(180deg, #fffaf4 0%, #f7f4ef 40%, #f3ebe0 100%);
+  background-attachment: fixed;
+}
+
+:root[data-darkmode="true"] body {
+  background:
+    radial-gradient(1100px 520px at -5% -10%, #3a2410 0%, transparent 55%),
+    radial-gradient(900px 480px at 105% 0%, #2a1808 0%, transparent 50%),
+    linear-gradient(180deg, #16110c 0%, #120e0a 40%, #0c0907 100%);
+  background-attachment: fixed;
+}
+
+/* Sticky header — Node Status LuCI chip tones */
+header {
+  background: linear-gradient(#2a1a0a, #1a140c) !important;
+  color: #ffe8c4 !important;
+  box-shadow: 0 1px 3px rgba(80, 40, 0, 0.35), inset 0 -1px 0 rgba(247, 147, 26, 0.15);
+}
+header a {
+  color: #ffe8c4 !important;
+  text-shadow: none !important;
+}
+header .brand,
+header .brand:hover,
+header ul .active > a {
+  color: #fffaf4 !important;
+}
+header .brand:hover,
+header ul .active > a,
+.nav a:hover,
+.nav a.menu:hover {
+  background-color: rgba(247, 147, 26, 0.18) !important;
+}
+.nav .active > a {
+  background-color: rgba(247, 147, 26, 0.28) !important;
+  color: #fffaf4 !important;
+}
+.nav .dropdown-menu {
+  background-color: #1c140e !important;
+}
+.nav .dropdown-menu li a {
+  color: #c4a882 !important;
+  text-shadow: none !important;
+}
+.nav .dropdown-menu li a:hover {
+  background: linear-gradient(to bottom, #3a2410, #2a1a0a) !important;
+  color: #fffaf4 !important;
+}
+
+/* Tabs / links / focus — orange instead of LuCI blue */
+.tabs,
+.cbi-tabmenu {
+  --tab-active-text-color: #c96a00;
+}
+:root[data-darkmode="true"] .tabs,
+:root[data-darkmode="true"] .cbi-tabmenu {
+  --tab-active-text-color: #ffb04a;
+}
+
+.item:hover::after,
+.btn:hover,
+.btn:focus,
+.cbi-button:hover,
+.cbi-button:focus,
+.cbi-select.focus,
+.cbi-dropdown:focus,
+.cbi-dropdown[open],
+.cbi-dynlist > .item:focus,
+input[type="checkbox"]:focus::before,
+input[type="radio"]:focus::before,
+input:focus,
+button:hover,
+textarea:focus,
+select:focus {
+  --focus-color-rgb: 247, 147, 26;
+}
+
+:root[data-darkmode="true"] .item:hover::after,
+:root[data-darkmode="true"] .btn:hover,
+:root[data-darkmode="true"] .btn:focus,
+:root[data-darkmode="true"] .cbi-button:hover,
+:root[data-darkmode="true"] .cbi-button:focus,
+:root[data-darkmode="true"] input:focus,
+:root[data-darkmode="true"] textarea:focus,
+:root[data-darkmode="true"] select:focus {
+  --focus-color-rgb: 255, 176, 74;
+}
+
+.tr.drag-over-above,
+.tr.drag-over-below {
+  border-color: #f7931a;
+}
+
+div.cbi-value var,
+.td.cbi-value-field var {
+  color: #c96a00;
+}
+div.cbi-value var[data-tooltip],
+.td.cbi-value-field var[data-tooltip],
+div.cbi-value var.cbi-tooltip-container,
+.td.cbi-value-field var.cbi-tooltip-container {
+  border-bottom-color: #c96a00;
+}
+
+.cbi-title-ref {
+  color: #c96a00;
+}
+
+/* Login modal sits on dark overlay — keep card warm */
+#modal_overlay {
+  background: rgba(18, 14, 10, 0.72);
+}
+.modal {
+  border-color: rgba(247, 147, 26, 0.35);
+  box-shadow: 0 18px 50px rgba(80, 40, 0, 0.25);
+}
+
+/* Authenticated LuCI pages: top return bar (Node Status accent) */
+#knots-return-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(#2a1a0a, #1a140c);
+  color: #ffe8c4;
+  font: 600 14px/1.35 "Trebuchet MS", "Segoe UI", sans-serif;
+  border-bottom: 3px solid #f7931a;
+  position: relative;
+  z-index: 10000;
+}
+#knots-return-bar a {
+  color: #fffaf4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 15px;
+}
+#knots-return-bar a:hover { color: #ffb04a; }
+#knots-return-bar span {
+  font-weight: 500;
+  opacity: 0.9;
+  font-size: 12px;
+}
+
+/*
+ * Login: directly under .modal.login (outside the frame), centered on the
+ * same width as the dialog so the label sits under the full-width Log in button.
+ * Font matches LuCI h4 ("Authorization Required"): 16px / 700.
+ */
+#modal_overlay > #knots-login-return {
+  display: block;
+  text-align: center;
+  margin: 0.5rem auto 2.5rem;
+  max-width: 600px;
+  width: 90%;
+  box-sizing: border-box;
+  padding: 0 1em;
+  position: relative;
+  z-index: 901;
+}
+#modal_overlay > #knots-login-return a {
+  display: block;
+  width: 100%;
+  text-align: center;
+  color: #ffe8c4;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 36px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+#modal_overlay > #knots-login-return a:hover {
+  color: #ffb04a;
+}

@@ -1,0 +1,9 @@
+#!/bin/sh /etc/rc.common
+# SPDX-License-Identifier: GPL-2.0-only
+# Heal Wi‑Fi defaults on upgrade / units that never ran 95-knots-wifi (R7/U6).
+START=19
+
+boot() {
+	[ -x /usr/libexec/knots/wifi-default-enable.sh ] || return 0
+	/usr/libexec/knots/wifi-default-enable.sh >/tmp/knots-wifi-default.log 2>&1 || true
+}

@@ -1,0 +1,4 @@
+Trusted release signing keys (usign public keys), one file per key, named by
+its 16-hex fingerprint (`usign -F -p key.pub`). Created with
+factory/release-keygen.sh on an offline machine; only the PUBLIC key goes
+here. As soon as a key file exists, Settings refuses unsigned upgrades.

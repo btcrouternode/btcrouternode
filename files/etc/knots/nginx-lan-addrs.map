@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# S11 — router public IPv6 LAN addresses for the nginx $knots_via_lan map.
+# Rewritten by /etc/hotplug.d/iface/90-knots-lan-addrs on lan ifup/ifupdate.
+# Private / ULA / link-local addresses are matched in knots-ui.conf directly,
+# so an empty file never locks a LAN client out over IPv4.

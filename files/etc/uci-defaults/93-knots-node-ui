@@ -1,0 +1,37 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# Enable nginx Knots dashboard on :80/:443; LuCI on :8080/:8443 (U1/U1a).
+
+set -e
+
+mkdir -p /etc/knots/tls /www/knots /tmp/knots /etc/nginx/conf.d /usr/share/luci/menu.d
+
+/usr/libexec/knots/node-ui-tls.sh node-router || true
+/usr/libexec/knots/ui-ports.sh || true
+
+# product_version is staged by Makefile overlay (R1a). Never hardcode here — a stale
+# echo wiped BUILD_NUM on every first boot (saw 24.10.8.29.3 instead of …29.3.4).
+
+# Stamp serial banner Build: from staged R1a files (visible before knots-start)
+if [ -f /etc/banner ] && [ -f /etc/knots/product_version ]; then
+	_pv=$(cat /etc/knots/product_version 2>/dev/null | tr -d '\r\n')
+	_bn=$(cat /etc/knots/build_number 2>/dev/null | tr -d '\r\n')
+	_bl="${_pv:-unknown}"
+	[ -n "$_bn" ] && _bl="${_pv} (rev ${_bn})"
+	if grep -q '^ Build:' /etc/banner 2>/dev/null; then
+		sed -i "s|^ Build:.*| Build:    ${_bl}|" /etc/banner 2>/dev/null || true
+	fi
+fi
+
+# Ensure conf.d include (OpenWrt nginx-ssl variants differ)
+if [ -f /etc/nginx/nginx.conf ] && ! grep -q 'conf.d/\*\.conf' /etc/nginx/nginx.conf 2>/dev/null; then
+	sed -i '/http {/a\	include /etc/nginx/conf.d/*.conf;' /etc/nginx/nginx.conf 2>/dev/null || true
+fi
+
+[ -x /etc/init.d/nginx ] && /etc/init.d/nginx enable || true
+[ -x /etc/init.d/knots-status ] && /etc/init.d/knots-status enable || true
+[ -x /etc/init.d/knots-mdns-alias ] && /etc/init.d/knots-mdns-alias enable || true
+[ -x /etc/init.d/dbus ] && /etc/init.d/dbus enable || true
+[ -x /etc/init.d/knots-node-ui ] && /etc/init.d/knots-node-ui enable || true
+
+exit 0

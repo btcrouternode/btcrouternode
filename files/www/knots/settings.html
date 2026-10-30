@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-2.0-only -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <title>Settings — Bitcoin Node</title>
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="app.css?v=100a" />
+</head>
+<body>
+  <div class="shell">
+    <header class="brand">
+      <p class="eyebrow">BPI-R4 appliance</p>
+      <h1>Bitcoin Node</h1>
+      <p class="tagline">Upgrade appliance software, tune bitcoin.conf, start or stop the Bitcoin node, and reboot or shut down the appliance — never wipes the blockchain.</p>
+    </header>
+
+    <p id="banner" class="muted" hidden></p>
+    <p class="muted">Every change on this page requires the router <strong>root</strong> username and password (same as LuCI).</p>
+
+    <section class="metrics">
+      <div class="metric wide">
+        <span class="k">Appliance build</span>
+        <span class="v mono" id="productVer">—</span>
+      </div>
+      <div class="metric wide" id="unitNameBox" hidden>
+        <span class="k">This router's own address</span>
+        <span class="v mono" id="unitName">—</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Language</h2>
+      <p class="muted">
+        Changes the Knots Node UI language and LuCI together.
+        Timezone stays as set in first-run Setup.
+      </p>
+      <p>
+        <label>UI language
+          <select id="uiLang"></select>
+        </label>
+      </p>
+      <p>
+        <label>Router username
+          <input id="langUser" type="text" autocomplete="username" value="root" />
+        </label>
+      </p>
+      <p>
+        <label>Router password
+          <input id="langPass" type="password" autocomplete="current-password" />
+        </label>
+      </p>
+      <p>
+        <label>Type <strong>LANGUAGE</strong> to confirm
+          <input id="langConfirm" type="text" autocomplete="off" placeholder="LANGUAGE" />
+        </label>
+      </p>
+      <p><button type="button" class="btn" id="btnLang">Apply language</button></p>
+    </section>
+
+    <section class="panel" id="panelNodeCtl">
+      <h2>Node start / stop</h2>
+      <p class="muted">
+        Controls the Bitcoin node only. Does not reboot or shut down the appliance.
+        Chain data on the M.2 is kept.
+      </p>
+      <p>Node status: <strong class="mono" id="nodeRunning">—</strong></p>
+      <p class="settings-auth">
+        <label>Router username (root)
+          <input id="nodeUser" type="text" autocomplete="username" value="root" />
+        </label>
+        <label>Router password
+          <input id="nodePass" type="password" autocomplete="current-password" />
+        </label>
+      </p>
+      <div class="settings-actions">
+        <div class="settings-action">
+          <h3>Stop node</h3>
+          <p class="muted">Stops bitcoind. The router stays on.</p>
+          <p>
+            <label>Type <strong>STOP</strong> to confirm
+              <input id="stopConfirm" type="text" autocomplete="off" placeholder="STOP" />
+            </label>
+          </p>
+          <p><button type="button" class="btn" id="btnStop" disabled>Stop node</button></p>
+        </div>
+        <div class="settings-action">
+          <h3>Start node</h3>
+          <p class="muted">
+            Starts bitcoind using the existing M.2 datadir.
+            Available only when the node is stopped — stop first, then start.
+            Optional ReIndex Node repairs the local chain database from blocks
+            already on the M.2 — not a re-download.
+          </p>
+          <p>
+            <label>Type <strong>START</strong> to confirm
+              <input id="startConfirm" type="text" autocomplete="off" placeholder="START" />
+            </label>
+          </p>
+          <p class="settings-start-row">
+            <button type="button" class="btn" id="btnStart" disabled>Start node</button>
+            <label class="settings-reindex" for="startReindex">
+              <input type="checkbox" id="startReindex" />
+              ReIndex Node
+            </label>
+            <label class="settings-reindex-kind" id="startReindexKindWrap" hidden>
+              <span class="sr-only">Reindex type</span>
+              <select id="startReindexKind">
+                <option value="chainstate" selected>Repair chain database</option>
+                <option value="full">Also rebuild the block index</option>
+              </select>
+            </label>
+          </p>
+          <p class="muted settings-reindex-progress" id="startReindexProgress" hidden>
+            Reindex in progress. Keep power on — this uses blocks already on the M.2,
+            not a re-download.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panelAppliancePower">
+      <h2>Appliance power</h2>
+      <p class="muted">
+        Controls the whole appliance (router). Not the same as node start/stop above.
+        Reboot and shutdown always stop the Bitcoin node first so chain data flushes cleanly.
+        The same stop runs if you reboot from LuCI.
+      </p>
+      <p class="settings-auth">
+        <label>Router username (root)
+          <input id="deviceUser" type="text" autocomplete="username" value="root" />
+        </label>
+        <label>Router password
+          <input id="devicePass" type="password" autocomplete="current-password" />
+        </label>
+      </p>
+      <div class="settings-actions">
+        <div class="settings-action">
+          <h3>Reboot appliance</h3>
+          <p class="muted">Restarts the router. LAN drops briefly.</p>
+          <p>
+            <label>Type <strong>REBOOT</strong> to confirm
+              <input id="rebootConfirm" type="text" autocomplete="off" placeholder="REBOOT" />
+            </label>
+          </p>
+          <p><button type="button" class="btn" id="btnReboot">Reboot appliance</button></p>
+        </div>
+        <div class="settings-action">
+          <h3>Shutdown appliance</h3>
+          <p class="muted">Powers the appliance off. You must power it on again manually.</p>
+          <p>
+            <label>Type <strong>SHUTDOWN</strong> to confirm
+              <input id="shutdownConfirm" type="text" autocomplete="off" placeholder="SHUTDOWN" />
+            </label>
+          </p>
+          <p><button type="button" class="btn btn-danger" id="btnShutdown">Shutdown appliance</button></p>
+        </div>
+        <!-- "Add this computer" (owner, 2026-10-26) -->
+        <div class="settings-action settings-action-wide">
+          <h3>Add another computer</h3>
+          <p class="muted">On the new computer (Windows, Mac or Linux), open a browser and go to
+            <strong class="mono" id="addPcUrl">http://rnode.local</strong> — type it with <strong>http://</strong>.
+            It shows <strong>Enable Secure Connection</strong> and the steps for that computer, then carries on
+            to your router securely. After a factory reset or a renewed certificate, every computer does this once again.</p>
+        </div>
+        <!-- P3 / D3: explicit HTTPS certificate rotation (never automatic) -->
+        <div class="settings-action settings-action-wide">
+          <h3>Renew HTTPS certificate</h3>
+          <p class="muted">Creates a new certificate for this router's secure pages. Every computer that installed the old one must install the new one again (Install trust page). Use this if a device that trusted this router was lost or sold.</p>
+          <p>
+            <label>Type <strong>RENEW</strong> to confirm
+              <input id="tlsRenewConfirm" type="text" autocomplete="off" placeholder="RENEW" />
+            </label>
+          </p>
+          <p class="muted">Current certificate SHA-256 fingerprint (compare with what the installer prints on a new device):<br />
+            <span class="mono fingerprint" id="caFingerprint">—</span><br />
+            <span id="caRestricted"></span></p>
+          <p><button type="button" class="btn" id="btnTlsRenew">Renew certificate</button></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panelFactoryReset">
+      <h2>Factory reset</h2>
+      <p class="muted">
+        Restores router settings to the appliance baseline (network, firewall, admin password)
+        and starts first-run Setup again.
+        <strong>Does not wipe the blockchain on the M.2</strong> (N3 / S7).
+        The Bitcoin node is stopped cleanly first.
+      </p>
+      <p class="settings-auth">
+        <label>Router username (root)
+          <input id="resetUser" type="text" autocomplete="username" value="root" />
+        </label>
+        <label>Router password
+          <input id="resetPass" type="password" autocomplete="current-password" />
+        </label>
+      </p>
+      <p>
+        <label>Type <strong>RESET</strong> to confirm
+          <input id="resetConfirm" type="text" autocomplete="off" placeholder="RESET" />
+        </label>
+      </p>
+      <p><button type="button" class="btn btn-danger" id="btnFactoryReset">Reset to factory defaults</button></p>
+      <p class="muted">You will be taken to a full <strong>reset page</strong> with progress, then first-run Setup.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Appliance upgrade</h2>
+      <p class="muted">
+        Upload a BPI-R4 <strong>sysupgrade</strong> image
+        (<span class="mono">*sysupgrade.itb</span> — not the SD card <span class="mono">*.img.gz</span>).
+        Paste the <strong>SHA256</strong> from the release / checksum page (required — verifies the file before flash).
+        Choose whether to <strong>keep</strong> router settings (default) or <strong>reset</strong> them to factory defaults.
+        <strong>The blockchain on the M.2 is never wiped</strong> (NF9).
+        Knots/Core binary updates remain on <a href="https://rnode.local/node.html">Node software</a>.
+      </p>
+      <p>
+        <label>Image file
+          <input id="upgradeFile" type="file" accept=".itb,.bin,application/octet-stream" />
+        </label>
+      </p>
+      <p>
+        <label>SHA256 checksum (required)
+          <input id="upgradeSha256" type="text" autocomplete="off" spellcheck="false"
+            placeholder="Paste 64-character hex from the release page" />
+        </label>
+      </p>
+      <p class="muted">
+        Copy the hash from the same place you downloaded the image
+        (e.g. the <span class="mono">.sha256</span> file or website). You can paste a full
+        <span class="mono">sha256sum</span> line — only the hash is used.
+      </p>
+      <div class="upgrade-keep-block">
+        <p class="upgrade-keep-title">Router settings after upgrade</p>
+        <div
+          class="config-slider-wrap"
+          role="group"
+          aria-labelledby="upgradeKeepTitle"
+        >
+          <span id="upgradeKeepTitle" class="sr-only">Router settings after upgrade</span>
+          <span id="upgradeKeepLabel" class="config-slider-side is-active">Keep settings</span>
+          <button
+            type="button"
+            id="upgradeKeepToggle"
+            class="config-slider"
+            role="switch"
+            aria-checked="true"
+            aria-label="Keep existing router settings"
+          >
+            <span class="config-slider-knob" aria-hidden="true"></span>
+          </button>
+          <span id="upgradeResetLabel" class="config-slider-side">Reset settings</span>
+        </div>
+        <p class="muted" id="upgradeKeepHint">
+          Keep Wi‑Fi, admin password, and network settings. First-run Setup will not run again.
+        </p>
+      </div>
+      <p>
+        <label>Router username
+          <input id="upgradeUser" type="text" autocomplete="username" value="root" />
+        </label>
+      </p>
+      <p>
+        <label>Router password
+          <input id="upgradePass" type="password" autocomplete="current-password" />
+        </label>
+      </p>
+      <p>
+        <label>Type <strong>UPGRADE</strong> to confirm
+          <input id="upgradeConfirm" type="text" autocomplete="off" placeholder="UPGRADE" />
+        </label>
+      </p>
+      <p><button type="button" class="btn" id="btnUpgrade">Verify &amp; upgrade</button></p>
+      <div id="upgradeProgress" class="upgrade-progress" hidden>
+        <div class="upgrade-progress-label" id="upgradeProgressLabel">Preparing…</div>
+        <div class="upgrade-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="upgradeProgressBar">
+          <div class="upgrade-progress-fill" id="upgradeProgressFill"></div>
+        </div>
+        <p class="upgrade-progress-detail mono" id="upgradeProgressDetail"></p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Bitcoin Node Configuration - Beginner User</h2>
+      <p class="muted">
+        Allowlisted knobs only. Saving restarts the node. Topology keys (datadir, RPC bind, prune, wallet)
+        stay locked to the product contract.
+      </p>
+      <div class="metrics" id="safeForm">
+        <div class="metric">
+          <span class="k">dbcache (MiB)</span>
+          <input id="dbcache" type="number" min="64" max="2048" class="v" />
+        </div>
+        <div class="metric">
+          <span class="k">maxconnections</span>
+          <input id="maxconnections" type="number" min="8" max="125" class="v" />
+        </div>
+        <div class="metric">
+          <span class="k">maxmempool (MiB)</span>
+          <input id="maxmempool" type="number" min="5" max="1000" class="v" />
+        </div>
+        <div class="metric">
+          <span class="k">mempoolexpiry (hours)</span>
+          <input id="mempoolexpiry" type="number" min="1" max="10080" class="v" />
+        </div>
+        <div class="metric">
+          <span class="k">blocksonly (0/1)</span>
+          <input id="blocksonly" type="number" min="0" max="1" class="v" />
+        </div>
+        <div class="metric">
+          <span class="k">peerbloomfilters (0/1)</span>
+          <input id="peerbloomfilters" type="number" min="0" max="1" class="v" />
+        </div>
+      </div>
+      <p>
+        <label>Router username
+          <input id="confUser" type="text" autocomplete="username" value="root" />
+        </label>
+      </p>
+      <p>
+        <label>Router password
+          <input id="confPass" type="password" autocomplete="current-password" />
+        </label>
+      </p>
+      <p>
+        <label>Type <strong>SAVE</strong> to confirm (restarts bitcoind)
+          <input id="confConfirm" type="text" autocomplete="off" placeholder="SAVE" />
+        </label>
+      </p>
+      <p><button type="button" class="btn" id="btnSaveSafe">Save &amp; restart node</button></p>
+    </section>
+
+    <section class="panel">
+      <h2>Bitcoin Node Configuration - Experienced User</h2>
+      <p class="muted">
+        Raw editor. Changing product-required keys (datadir, bind, prune, disablewallet, …) is rejected.
+        Requires <strong>ADVANCED</strong> + <strong>SAVE</strong> and router password.
+      </p>
+      <p>
+        <textarea id="rawConf" rows="16" class="mono" style="width:100%;font-family:ui-monospace,monospace;font-size:0.85rem"></textarea>
+      </p>
+      <p>
+        <label>Router username
+          <input id="advUser" type="text" autocomplete="username" value="root" />
+        </label>
+      </p>
+      <p>
+        <label>Router password
+          <input id="advPass" type="password" autocomplete="current-password" />
+        </label>
+      </p>
+      <p>
+        <label>Type <strong>ADVANCED</strong>
+          <input id="advConfirmAdv" type="text" autocomplete="off" placeholder="ADVANCED" />
+        </label>
+      </p>
+      <p>
+        <label>Type <strong>SAVE</strong>
+          <input id="advConfirm" type="text" autocomplete="off" placeholder="SAVE" />
+        </label>
+      </p>
+      <p><button type="button" class="btn" id="btnSaveAdv">Save raw &amp; restart node</button></p>
+    </section>
+  </div>
+  <script src="i18n.js?v=107a"></script>
+  <script src="tls-os.js?v=113a"></script>
+  <script src="shell.js?v=96a"></script>
+  <script src="settings.js?v=113a"></script>
+</body>
+</html>

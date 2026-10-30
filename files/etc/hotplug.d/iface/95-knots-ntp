@@ -1,0 +1,11 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# Ask for the time again the moment the internet comes up. sysntpd starts at
+# boot (S98), usually before Setup or the WAN cable has given the router a
+# working DNS — router B (.107) then ran 36 minutes with the firmware build
+# date as its clock and its node refused the chain ("blocks from the future").
+[ "$INTERFACE" = "wan" ] || exit 0
+[ "$ACTION" = "ifup" ] || exit 0
+[ "$(uci -q get system.ntp.enabled)" = "0" ] && exit 0
+/etc/init.d/sysntpd restart >/dev/null 2>&1 &
+exit 0

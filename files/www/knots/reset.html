@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-2.0-only -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <title>Factory Reset in Progress — Bitcoin Node</title>
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body class="setup-page reset-page">
+  <div class="shell">
+    <header class="brand">
+      <p class="eyebrow">BPI-R4 appliance</p>
+      <h1>Bitcoin Node</h1>
+      <p class="tagline">Factory reset</p>
+    </header>
+
+    <section class="panel reset-panel" aria-live="polite">
+      <h2 id="waitTitle">Factory Reset in Progress</h2>
+      <p class="reset-warn" id="waitWarn" role="alert">
+        Do NOT Power Cycle the router — reset in progress
+      </p>
+      <p class="muted" id="waitCopy">
+        Keep this page open. Each reset step has its own bar that counts down
+        even if this computer briefly loses the router. The Bitcoin node is
+        stopped, router settings are restored, then the appliance reboots.
+        The blockchain on the M.2 is <strong>not</strong> wiped.
+        Your computer may show Ethernet or Wi-Fi as disconnected while the router
+        restarts — that is normal. Leave the cable plugged in; if Ubuntu turns LAN
+        off, click it back on. Do not power-cycle the router.
+      </p>
+      <div id="waitProgress" class="upgrade-progress factory-reset-progress">
+        <div class="upgrade-progress-label" id="waitProgressLabel">Factory Reset in Progress</div>
+        <div
+          class="upgrade-progress-track"
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+          id="waitProgressBar"
+          aria-label="Factory reset progress"
+        >
+          <div class="upgrade-progress-fill" id="waitProgressFill"></div>
+        </div>
+        <p class="upgrade-progress-detail mono" id="waitProgressDetail">Starting…</p>
+        <ol id="waitStepList" class="wait-steps" aria-label="Factory reset steps"></ol>
+      </div>
+      <p class="muted" id="waitHint">When this finishes, first-run Setup opens automatically.</p>
+    </section>
+  </div>
+  <script src="shell.js?v=96a"></script>
+  <script src="wait-handoff.js?v=92a"></script>
+  <script src="progress-wait.js?v=92a"></script>
+  <script src="reset.js?v=92a"></script>
+</body>
+</html>

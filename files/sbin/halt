@@ -1,0 +1,5 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# U18 — halt must stop the Bitcoin node first (same contract as poweroff).
+/usr/libexec/knots/pre-reboot-stop.sh || true
+exec /bin/busybox halt "$@"

@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-2.0-only -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Setup — Bitcoin Node</title>
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="app.css?v=100a" />
+</head>
+<body class="setup-page">
+  <div class="shell">
+    <header class="brand">
+      <p class="eyebrow">BPI-R4 appliance</p>
+      <h1>Bitcoin Node</h1>
+      <p class="tagline" data-i18n="setup.tagline">First-time setup — we guide you one step at a time.</p>
+    </header>
+
+    <p class="setup-progress" id="progressLabel">Step 1 of 10</p>
+    <p id="banner" class="muted" hidden></p>
+
+    <!-- First-use captive portal: Setup opened by itself in the Mac's sign-in
+         window (captive-portal.sh). That mini browser cannot download the
+         certificate profile, so ask for the real browser before the Security step. -->
+    <p class="warn" id="cnaHint" hidden>
+      <span data-i18n="setup.captive.hint">This page opened in your computer's Wi‑Fi sign-in window. For the security step you need your normal browser:
+      open Safari, Chrome or Firefox and go to</span>
+      <strong class="mono" id="cnaUrl"></strong>
+    </p>
+
+    <!-- Phones and tablets (owner decision 2026-10-25): Setup starts by
+         installing the secure-connection certificate, which Android and iOS
+         only allow through several Settings screens — so Setup is done from a
+         laptop or computer. setup.js shows only this panel on a phone/tablet. -->
+    <section class="panel" id="phoneOnly" hidden>
+      <h2 data-i18n="setup.phone.title">Please use a laptop or computer</h2>
+      <p class="muted" data-i18n="setup.phone.body">
+        Setup starts by making the connection to your router <strong>secure</strong>,
+        and phones and tablets can’t do that easily. Please do Setup from a
+        <strong>laptop or computer</strong>:
+      </p>
+      <ol class="tls-steps">
+        <li data-i18n="setup.phone.join">On the computer, join Wi‑Fi <strong class="mono">rnode</strong> with the password on the router’s sticker — or plug a cable into one of the router’s LAN ports.</li>
+        <li data-i18n="setup.phone.open">Setup opens by itself. If it does not, open a browser and go to <strong class="mono">http://192.168.1.254</strong></li>
+      </ol>
+      <p class="muted" data-i18n="setup.phone.after">After Setup, phones and tablets can use the new Wi‑Fi as normal.</p>
+    </section>
+
+    <!-- 0 Welcome (U17 page 1 — HTTP via rnode.local) -->
+    <section class="panel setup-step" data-step="0" id="stepWelcome">
+      <h2 data-i18n="setup.welcome.title">Welcome to RNode and the Bitcoin Ecosystem.</h2>
+      <p class="muted" id="welcomeBody" data-i18n="setup.welcome.body">
+        This box is your <strong>home internet router</strong> and a <strong>Bitcoin full node</strong>.
+        Setup takes a few minutes — just follow each screen.
+        Join Wi‑Fi <strong>rnode</strong> with the password printed on the label, or use a LAN cable.
+      </p>
+      <!-- P1: unlabelled unit (no per-device secret) — Wi-Fi stays off until Setup -->
+      <p class="muted" id="welcomeBodyNoWifi" data-i18n="setup.welcome.body_nowifi" hidden>
+        This box is your <strong>home internet router</strong> and a <strong>Bitcoin full node</strong>.
+        Setup takes a few minutes — just follow each screen.
+        Wi‑Fi is off until Setup is finished — connect a LAN cable from this box to your computer.
+      </p>
+      <ol class="tls-steps">
+        <li id="welcomeJoin" data-i18n="setup.welcome.join">Join Wi‑Fi <strong class="mono">rnode</strong> with the password printed on the label — or plug a LAN cable from this box into your computer.</li>
+        <li id="welcomeJoinNoWifi" data-i18n="setup.welcome.join_nowifi" hidden>Plug a LAN cable from this box into your computer (Wi‑Fi is off until Setup is finished).</li>
+        <li>Leave the other cable plugged into your modem / wall internet (WAN) if you have one.</li>
+        <li>When you are ready, tap <strong>Continue</strong> below.</li>
+      </ol>
+      <p><button type="button" class="btn btn-accent" id="btnWelcome" data-i18n="setup.welcome.cta">Continue</button></p>
+    </section>
+
+    <!-- 1 Security (N13 / U17 page 2 — HTTP until trust installed) -->
+    <section class="panel setup-step" data-step="1" id="stepTls" hidden>
+      <h2 data-i18n="setup.security.title">Security</h2>
+      <p class="muted" id="tlsIntro" data-i18n="setup.security.body">
+        We are now going to make sure that your connection to your router is secure, which means it is safe.
+        To start the process, click on the Enable Secure Connection button below.
+        This will download a small file to this computer.
+        Open the file and follow the prompts; this will enable the secure connection;
+        you will need to provide the password to this device.
+      </p>
+      <p class="muted">Detected device: <strong id="tlsOsLabel">…</strong></p>
+
+      <p class="tls-callout" id="tlsDownloadTip" data-static="1">
+        <strong>Important Browser downloads:</strong>
+        After you click the ‘Enable Secure Connection’ button, watch the
+        <strong>top right</strong> of the browser (or the downloads arrow).
+        The browser will ask to <strong>Allow</strong>, <strong>Save</strong>, or <strong>Keep</strong>
+        the file being downloaded (this is common in <strong>Firefox</strong>).
+        You <strong>Must</strong> click that option otherwise the file will <strong>NOT</strong> download.
+        The file should save to your <strong>Downloads</strong> folder, not open as a page of text.
+        You should be able to open the file from your browser.
+      </p>
+
+      <div class="tls-callout" id="tlsLinuxImportant" hidden>
+        <strong>On this computer (Ubuntu, Debian, Mint):</strong>
+        <ol class="tls-steps">
+          <li>Click the orange <strong>Enable Secure Connection</strong> button.</li>
+          <li>Click the downloaded file <strong class="mono">rnode-secure-connection.deb</strong>
+            (Firefox: the downloads arrow, top right). <strong>App Center</strong> opens — click <strong>Install</strong>.</li>
+          <li>Type <strong>your computer password</strong> and click <strong>Authenticate</strong>.</li>
+          <li>Your browser reopens on the secure Setup page by itself (Firefox closes for a moment first).
+            If it does not, close the browser and open it again.</li>
+        </ol>
+      </div>
+      <p class="tls-actions" id="tlsLinuxCtaWrap" hidden>
+        <a class="btn btn-accent" id="tlsLinuxCta" href="/tls/rnode-secure-connection.deb"
+          download="rnode-secure-connection.deb">Enable Secure Connection</a>
+      </p>
+      <p class="muted" id="tlsLinuxAlt" hidden>Another Linux, or App Center did not open? Use the Terminal instead:
+        press <strong>Ctrl + Alt + T</strong>, paste this command with <strong>Ctrl + Shift + V</strong>, press
+        <strong>Enter</strong> and type your password (nothing shows as you type — that is normal).
+        Firefox closes for a moment and reopens on the secure Setup page by itself.</p>
+      <!-- Windows (owner, 2026-10-25): the steps on screen, like the Mac. -->
+      <div class="tls-callout" id="tlsWinImportant" hidden>
+        <strong>On this Windows computer:</strong>
+        <ol class="tls-steps">
+          <li>Click the orange <strong>Enable Secure Connection</strong> button.</li>
+          <li>If your browser asks about the download, click <strong>Keep</strong>
+            (Edge: click <strong>⋯</strong> next to the file, then <strong>Keep</strong>).</li>
+          <li>Click the file <strong class="mono">install-bitcoin-node-trust.bat</strong> in the browser’s downloads list.</li>
+          <li>Windows asks whether to run it — click <strong>Run</strong>.
+            (A blue box “Windows protected your PC”? Click <strong>More info</strong>, then <strong>Run anyway</strong>.)</li>
+          <li>Windows asks “Do you want to allow this app to make changes?” — click <strong>Yes</strong>.</li>
+          <li>The secure Setup page opens by itself and the black window closes on its own.</li>
+        </ol>
+      </div>
+
+      <!-- Mac (owner decision 2026-10-25): one Terminal command, one password
+           box — no profile hunt in System Settings, no developer signing. -->
+      <div class="tls-callout" id="tlsMacImportant" hidden>
+        <strong>On this Mac:</strong>
+        <ol class="tls-steps">
+          <li>Click the orange <strong>Enable Secure Connection</strong> button below.</li>
+          <li>Your browser asks to open <strong>Script Editor</strong> — click <strong>Allow</strong>.</li>
+          <li>Script Editor opens with a short script. Click the <strong>▶ Run</strong> button
+            (top left of the Script Editor window).</li>
+          <li>Your Mac asks for <strong>your password</strong> — type it and click <strong>Update Settings</strong>.</li>
+          <li>The secure Setup page opens by itself. Close Script Editor and click <strong>Delete</strong>
+            (or <strong>Don’t Save</strong>) — the script is not needed again.</li>
+        </ol>
+      </div>
+      <p class="tls-actions" id="tlsMacCtaWrap" hidden>
+        <a class="btn btn-accent" id="tlsMacCta" href="#">Enable Secure Connection</a>
+      </p>
+      <p class="muted" id="tlsMacAlt" hidden>Script Editor did not open? Copy this command into Terminal instead
+        (<strong>⌘ Command + Space</strong>, type <strong>Terminal</strong>, press <strong>Return</strong>, paste with
+        <strong>⌘ Command + V</strong>, press <strong>Return</strong>, then type your password when asked):</p>
+      <div id="tlsMacQuick" hidden>
+        <div id="tlsMacOneLinerWrap" class="copyable" data-copy="" style="background:#101418;color:#7ee787;border-radius:8px;padding:0.9rem 1rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">
+          <div style="opacity:.65;font-size:.85em;margin-bottom:.4rem">Terminal</div>
+          <div>$ <span class="mono" id="tlsMacOneLiner"></span>
+            <button type="button" class="btn btn-copy">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="tls-actions" id="tlsTopCtaWrap" hidden>
+        <a class="btn btn-accent" id="tlsPrimaryCta" href="/knots-ca.crt" data-i18n="setup.security.cta">Enable Secure Connection</a>
+      </p>
+      <p class="muted" id="tlsPrimaryHint" hidden></p>
+
+      <div id="tlsProgress" hidden>
+        <progress id="tlsProgressBar" max="100" value="0" style="width:100%"></progress>
+        <p class="muted" id="tlsProgressLabel"></p>
+      </div>
+
+      <div id="tlsLinuxQuick" hidden>
+        <div id="tlsLinuxOneLinerWrap" class="copyable" data-copy="sh ~/Downloads/install-bitcoin-node-trust.sh" style="background:#101418;color:#7ee787;border-radius:8px;padding:0.9rem 1rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">
+          <div style="opacity:.65;font-size:.85em;margin-bottom:.4rem">Terminal</div>
+          <div>$ <span class="mono" id="tlsLinuxOneLiner">sh ~/Downloads/install-bitcoin-node-trust.sh</span>
+            <button type="button" class="btn btn-copy">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="muted">Different operating system</p>
+      <div class="tls-os-tabs" id="tlsOsTabs" role="tablist" aria-label="Operating system">
+        <button type="button" data-os="windows" role="tab">Windows</button>
+        <button type="button" data-os="mac" role="tab" hidden>macOS</button>
+        <button type="button" data-os="linux" role="tab">Linux</button>
+      </div>
+
+      <details id="tlsHelp">
+        <summary data-i18n="setup.security.help">Step-by-step help for your device</summary>
+
+        <div class="tls-panel" data-os="windows" hidden>
+          <ol class="tls-steps">
+          <li>Click the orange <strong>Enable Secure Connection</strong> button.</li>
+          <li>If your browser asks about the download, click <strong>Keep</strong>
+            (Edge: click <strong>⋯</strong> next to the file, then <strong>Keep</strong>).</li>
+          <li>Click the file <strong class="mono">install-bitcoin-node-trust.bat</strong> in the browser’s downloads list.</li>
+          <li>Windows asks whether to run it — click <strong>Run</strong>.
+            (A blue box “Windows protected your PC”? Click <strong>More info</strong>, then <strong>Run anyway</strong>.)</li>
+          <li>Windows asks “Do you want to allow this app to make changes?” — click <strong>Yes</strong>.</li>
+          <li>The secure Setup page opens by itself and the black window closes on its own.</li>
+          </ol>
+        </div>
+        <div class="tls-panel" data-os="mac" hidden>
+          <ol class="tls-steps">
+            <li>Click the orange <strong>Enable Secure Connection</strong> button above.</li>
+            <li>When the browser asks to open <strong>Script Editor</strong>, click <strong>Allow</strong>.</li>
+            <li>In Script Editor click <strong>▶ Run</strong> (top left).</li>
+            <li>When your Mac asks for <strong>your password</strong>, type it and click <strong>Update Settings</strong>.</li>
+            <li>The secure Setup page opens by itself. If it does not, click
+              <strong>I’ve finished — continue</strong>.</li>
+          </ol>
+        </div>
+        <div class="tls-panel" data-os="linux" hidden>
+          <ol class="tls-steps">
+          <li>Click the orange <strong>Enable Secure Connection</strong> button.</li>
+          <li>Click the downloaded file <strong class="mono">rnode-secure-connection.deb</strong>
+            (Firefox: the downloads arrow, top right). <strong>App Center</strong> opens — click <strong>Install</strong>.</li>
+          <li>Type <strong>your computer password</strong> and click <strong>Authenticate</strong>.</li>
+          <li>Your browser reopens on the secure Setup page by itself (Firefox closes for a moment first).
+            If it does not, close the browser and open it again.</li>
+          </ol>
+          <p class="muted">Another Linux? Use the Terminal command box above (<strong>Ctrl + Alt + T</strong>,
+            paste with <strong>Ctrl + Shift + V</strong>, <strong>Enter</strong>, your password).</p>
+        </div>
+      </details>
+
+      <p class="setup-actions">
+        <button type="button" class="btn btn-accent" id="btnTlsContinue">I’ve finished — continue</button>
+        <button type="button" class="btn" id="btnTlsSkip">Skip for now</button>
+      </p>
+      <p class="muted">
+        Prefer to skip? Tap <strong>Skip for now</strong>. You can finish later from
+        <a href="http://rnode.local/tls.html">Trust / HTTPS help</a>.
+        Until the certificate is installed, the browser may keep showing a warning on
+        <strong>Node Status</strong> and <strong>Router settings</strong> (same certificate).
+      </p>
+    </section>
+
+    <!-- 2 Setup choice (U17 page 3 — HTTPS after trust) -->
+    <section class="panel setup-step" data-step="2" id="stepChoice" hidden>
+      <h2 data-i18n="setup.choice.title">Setup</h2>
+      <p class="muted" data-i18n="setup.choice.body">Choose how you want to set up this router.</p>
+
+      <p class="setup-choice">
+        <button type="button" class="btn btn-accent" id="btnQuick" data-i18n="setup.choice.quick">Quick Start</button>
+      </p>
+      <p class="muted" data-i18n="setup.choice.quick_note">
+        Recommended for non-technical people — the factory settings are used, which is fine.
+      </p>
+
+      <p class="setup-choice">
+        <button type="button" class="btn" id="btnGuided" data-i18n="setup.choice.guided">Guided Setup</button>
+      </p>
+      <p class="muted" data-i18n="setup.choice.guided_note">
+        Recommended for technical people — customise the Wi‑Fi name, LAN IP range and node choice.
+      </p>
+
+      <hr />
+      <p class="muted" id="choiceLocaleLine">Language &amp; timezone (from your browser): …</p>
+      <details id="choiceLocaleEdit">
+        <summary data-i18n="setup.choice.change_locale">Change language or timezone</summary>
+        <p>
+          <label><span data-i18n="setup.locale.language">Language</span>
+            <select id="localeLang"></select>
+          </label>
+        </p>
+        <p>
+          <label><span data-i18n="setup.locale.timezone">Timezone</span>
+            <select id="localeTimezone"></select>
+          </label>
+        </p>
+        <p class="muted"><span data-i18n="setup.locale.wifi_country">Wi‑Fi country</span>:
+          <strong class="mono" id="localeCountryShow">—</strong>
+        </p>
+      </details>
+    </section>
+
+    <!-- 3 Quick Start (defaults; router + Wi-Fi password; WAN auto) -->
+    <section class="panel setup-step" data-step="3" id="stepQuick" hidden>
+      <h2 data-i18n="setup.quick.title">Quick Start</h2>
+      <p class="muted" data-i18n="setup.quick.body">
+        Set a router password and a Wi‑Fi password — everything else uses the factory defaults
+        (Wi‑Fi name <strong>rnode</strong>, Bitcoin Core node, automatic internet).
+      </p>
+      <p class="state" id="quickWanState"></p>
+
+      <p>
+        <label><span data-i18n="setup.password.new">New router password</span>
+          <span class="pw-field">
+            <input id="quickPw1" type="password" autocomplete="new-password" />
+            <button type="button" class="pw-toggle" data-pw-toggle="quickPw1" aria-pressed="false">Show</button>
+          </span>
+        </label>
+      </p>
+      <p>
+        <label><span data-i18n="setup.password.confirm">Confirm router password</span>
+          <span class="pw-field">
+            <input id="quickPw2" type="password" autocomplete="new-password" />
+            <button type="button" class="pw-toggle" data-pw-toggle="quickPw2" aria-pressed="false">Show</button>
+          </span>
+        </label>
+      </p>
+
+      <div id="quickWifiForm">
+        <p>
+          <label><span data-i18n="setup.wifi.key">Wi‑Fi password</span> (<span class="mono">rnode</span>)
+            <span class="pw-field">
+              <input id="quickWifiKey" type="password" minlength="8" maxlength="63" autocomplete="new-password" />
+              <button type="button" class="pw-toggle" data-pw-toggle="quickWifiKey" aria-pressed="false">Show</button>
+            </span>
+          </label>
+        </p>
+        <p>
+          <label><span data-i18n="setup.wifi.key2">Confirm Wi‑Fi password</span>
+            <span class="pw-field">
+              <input id="quickWifiKey2" type="password" minlength="8" maxlength="63" autocomplete="new-password" />
+              <button type="button" class="pw-toggle" data-pw-toggle="quickWifiKey2" aria-pressed="false">Show</button>
+            </span>
+          </label>
+        </p>
+        <p class="muted" data-i18n="setup.wifi.key_hint">At least 8 characters (WPA2: 8–63). Must not be the factory password printed on the label.</p>
+      </div>
+
+      <p><button type="button" class="btn btn-accent" id="btnQuickSubmit" data-i18n="setup.quick.cta">Finish setup</button></p>
+
+      <!-- ISP login popup when DHCP finds no address -->
+      <div id="quickPppoeModal" class="setup-modal" hidden>
+        <div class="panel" style="max-width:26rem;margin:1rem">
+          <h3 data-i18n="setup.pppoe.title">Internet provider login</h3>
+          <p class="muted" data-i18n="setup.pppoe.body">
+            No internet address yet. If your ISP gave you a username and password, enter them here —
+            or skip and set up internet later in Settings.
+          </p>
+          <p>
+            <label><span data-i18n="setup.wan.isp_user">ISP username</span>
+              <input id="quickPppoeUser" type="text" autocomplete="username" />
+            </label>
+          </p>
+          <p>
+            <label><span data-i18n="setup.wan.isp_pass">ISP password</span>
+              <span class="pw-field">
+                <input id="quickPppoePass" type="password" autocomplete="current-password" />
+                <button type="button" class="pw-toggle" data-pw-toggle="quickPppoePass" aria-pressed="false">Show</button>
+              </span>
+            </label>
+          </p>
+          <p>
+            <button type="button" class="btn btn-accent" id="btnQuickPppoe" data-i18n="setup.wan.pppoe_cta">Connect with ISP login</button>
+            <button type="button" class="btn" id="btnQuickPppoeSkip" data-i18n="setup.wan.skip">Skip for now</button>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 Node (guided) -->
+    <section class="panel setup-step" data-step="4" id="stepNode" hidden>
+      <h2 data-i18n="setup.node.title">Bitcoin node</h2>
+      <p class="muted" data-i18n="setup.node.body">
+        Choose which Bitcoin software this box runs. Both are full nodes and share the same chain data on the disk.
+        If you are unsure, leave <strong>Bitcoin Core</strong> selected (recommended).
+      </p>
+      <ol class="tls-steps">
+        <li>Tap one of the two choices below (a filled circle means selected).</li>
+        <li>Tap <strong>Continue</strong>.</li>
+      </ol>
+      <p class="setup-choice">
+        <label class="choice">
+          <input type="radio" name="impl" value="core" checked />
+          <span data-i18n="setup.node.core"><strong>Bitcoin Core</strong> (recommended)</span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="impl" value="knots" />
+          <span data-i18n="setup.node.knots"><strong>Bitcoin Knots</strong></span>
+        </label>
+      </p>
+      <p><button type="button" class="btn btn-accent" id="btnNode" data-i18n="setup.node.cta">Continue</button></p>
+    </section>
+
+    <!-- 5 WAN (guided) -->
+    <section class="panel setup-step" data-step="5" id="stepWan" hidden>
+      <h2 data-i18n="setup.wan.title">Internet</h2>
+      <p class="muted">
+        We are checking whether this box can reach the internet through your modem
+        (automatic setup — you usually do nothing).
+      </p>
+      <p class="muted" id="wanCopy">Connecting with DHCP (typical home modem)…</p>
+      <p class="state" id="wanState"></p>
+      <div id="pppoeBox" hidden>
+        <p class="muted">Your internet provider gave you a username and password. Type them exactly as on the paper / email from your ISP.</p>
+        <p>
+          <label><span data-i18n="setup.wan.isp_user">ISP username</span>
+            <input id="pppoeUser" type="text" autocomplete="username" />
+          </label>
+        </p>
+        <p>
+          <label><span data-i18n="setup.wan.isp_pass">ISP password</span>
+            <span class="pw-field">
+              <input id="pppoePass" type="password" autocomplete="current-password" />
+              <button type="button" class="pw-toggle" data-pw-toggle="pppoePass" aria-pressed="false">Show</button>
+            </span>
+          </label>
+        </p>
+        <p><button type="button" class="btn" id="btnPppoe" data-i18n="setup.wan.pppoe_cta">Connect with ISP login</button></p>
+      </div>
+      <p class="setup-actions">
+        <button type="button" class="btn btn-accent" id="btnWanContinue" hidden data-i18n="setup.wan.continue">Continue</button>
+        <button type="button" class="btn" id="btnWanRetry" hidden data-i18n="setup.wan.retry">Try again</button>
+        <button type="button" class="btn" id="btnWanPppoe" hidden data-i18n="setup.wan.pppoe">My ISP needs a username and password</button>
+        <button type="button" class="btn" id="btnWanSkip" hidden data-i18n="setup.wan.skip">Skip for now</button>
+      </p>
+      <p class="muted">
+        When it says connected, tap the orange <strong>Continue</strong>.
+        If it fails: try <strong>Try again</strong>, or
+        <strong>My ISP needs a username and password</strong>, or <strong>Skip for now</strong> and finish internet later.
+      </p>
+      <p class="muted">
+        <span data-i18n="setup.wan.unusual">Unusual ISP (VLAN, etc.):</span>
+        <a href="#" id="setupLuciLink" data-i18n="setup.wan.luci">Router settings (LuCI)</a>
+      </p>
+    </section>
+
+    <!-- 6 Advanced LAN (guided) -->
+    <section class="panel setup-step" data-step="6" id="stepLan" hidden>
+      <h2 data-i18n="setup.lan.title">Advanced — LAN address</h2>
+      <p class="muted" data-i18n="setup.lan.body">
+        Most homes should <strong>leave this alone</strong> and tap <strong>Continue</strong>.
+        Only open “Change LAN IP range” if someone told you to use a different home network address.
+      </p>
+      <details id="lanDetails">
+        <summary data-i18n="setup.lan.summary">Change LAN IP range</summary>
+        <p class="muted">These values are saved and applied when you finish Setup. The home network does not change until then.</p>
+        <p>
+          <label><span data-i18n="setup.lan.ip">Router LAN IP</span>
+            <input id="lanIp" type="text" value="192.168.1.254" />
+          </label>
+        </p>
+        <p>
+          <label><span data-i18n="setup.lan.mask">Netmask</span>
+            <input id="lanMask" type="text" value="255.255.255.0" />
+          </label>
+        </p>
+        <p>
+          <label><span data-i18n="setup.lan.dhcp_start">DHCP start (host number)</span>
+            <input id="lanDhcpStart" type="number" value="100" min="2" max="250" />
+          </label>
+        </p>
+        <p>
+          <label><span data-i18n="setup.lan.dhcp_limit">DHCP count</span>
+            <input id="lanDhcpLimit" type="number" value="101" min="1" max="200" />
+          </label>
+        </p>
+        <p><button type="button" class="btn" id="btnLan" data-i18n="setup.lan.apply">Save for Finish</button></p>
+      </details>
+      <p><button type="button" class="btn btn-accent" id="btnLanContinue" data-i18n="setup.lan.continue">Continue</button></p>
+    </section>
+
+    <!-- 7 Wi-Fi (guided; R7/U6) -->
+    <section class="panel setup-step" data-step="7" id="stepWifi" hidden>
+      <h2 data-i18n="setup.wifi.title">Wi‑Fi</h2>
+      <p class="muted" id="wifiCopy" data-i18n="setup.wifi.body">
+        Choose a <strong>new</strong> Wi‑Fi name and password
+        that phones and laptops will use later.
+      </p>
+      <ol class="tls-steps" id="wifiSteps">
+        <li>Network name is already filled as <strong>rnode</strong> — change it only if you want a different name.</li>
+        <li>Type a Wi‑Fi password (at least <strong>8 characters</strong>), then type it again to confirm.</li>
+        <li>Country code is usually already set from your timezone — change only if wrong (e.g. AU, US, GB).</li>
+        <li>Tap <strong>Save Wi‑Fi</strong>. Settings apply when you finish Setup — this computer stays on the factory network until then.</li>
+      </ol>
+      <div id="wifiForm">
+        <p>
+          <label><span data-i18n="setup.wifi.ssid">Network name (SSID)</span>
+            <input id="wifiSsid" type="text" value="rnode" maxlength="32" autocomplete="off" />
+          </label>
+        </p>
+        <p class="muted" data-i18n="setup.wifi.ssid_hint">Default is rnode. You can change it.</p>
+        <p>
+          <label><span data-i18n="setup.wifi.key">Wi‑Fi password</span>
+            <span class="pw-field">
+              <input id="wifiKey" type="password" minlength="8" maxlength="63" autocomplete="new-password" required />
+              <button type="button" class="pw-toggle" data-pw-toggle="wifiKey" aria-pressed="false">Show</button>
+            </span>
+          </label>
+        </p>
+        <p>
+          <label><span data-i18n="setup.wifi.key2">Confirm Wi‑Fi password</span>
+            <span class="pw-field">
+              <input id="wifiKey2" type="password" minlength="8" maxlength="63" autocomplete="new-password" required />
+              <button type="button" class="pw-toggle" data-pw-toggle="wifiKey2" aria-pressed="false">Show</button>
+            </span>
+          </label>
+        </p>
+        <p class="muted" data-i18n="setup.wifi.key_hint">At least 8 characters (WPA2: 8–63). Must not be the factory password printed on the label.</p>
+        <p>
+          <label><span data-i18n="setup.wifi.country">Country code (e.g. AU, US, GB)</span>
+            <input id="wifiCountry" type="text" maxlength="2" placeholder="AU" autocomplete="off" />
+          </label>
+        </p>
+        <p><button type="button" class="btn btn-accent" id="btnWifi" data-i18n="setup.wifi.cta">Save Wi‑Fi</button></p>
+      </div>
+      <div id="wifiWait" class="setup-wifi-wait" hidden>
+        <h3>Saving Wi‑Fi</h3>
+        <p class="muted">Saving your new network name and password. They apply when Setup finishes. Next you will set the router password.</p>
+        <progress id="wifiWaitBar" class="setup-wait-bar" max="100" value="0"></progress>
+        <p class="state busy" id="wifiWaitLabel">Saving Wi‑Fi… 0s</p>
+      </div>
+      <p><button type="button" class="btn btn-accent" id="btnWifiSkip" hidden data-i18n="setup.wifi.continue">Continue</button></p>
+    </section>
+
+    <!-- 8 Password (guided) -->
+    <section class="panel setup-step" data-step="8" id="stepPassword" hidden>
+      <h2 data-i18n="setup.password.title">Router password</h2>
+      <p class="muted" data-i18n="setup.password.body">
+        Create a <strong>new router password</strong>. You will need it later for Settings and Router settings.
+        Do <strong>not</strong> reuse the temporary factory password.
+      </p>
+      <ol class="tls-steps">
+        <li>Type a new password in the first box (at least <strong>8 characters</strong>).</li>
+        <li>Type the <strong>same</strong> password again in the second box.</li>
+        <li>Tap <strong>Save password</strong>.</li>
+      </ol>
+      <p>
+        <label><span data-i18n="setup.password.new">New password</span>
+          <span class="pw-field">
+            <input id="pw1" type="password" autocomplete="new-password" />
+            <button type="button" class="pw-toggle" data-pw-toggle="pw1" aria-pressed="false">Show</button>
+          </span>
+        </label>
+      </p>
+      <p>
+        <label><span data-i18n="setup.password.confirm">Confirm password</span>
+          <span class="pw-field">
+            <input id="pw2" type="password" autocomplete="new-password" />
+            <button type="button" class="pw-toggle" data-pw-toggle="pw2" aria-pressed="false">Show</button>
+          </span>
+        </label>
+      </p>
+      <p><button type="button" class="btn btn-accent" id="btnPassword" data-i18n="setup.password.cta">Save password</button></p>
+    </section>
+
+    <!-- Network-wait notice (LAN IP change / finalize) -->
+    <section class="panel setup-restart" id="stepRestart" hidden>
+      <h2 id="restartTitle">Restarting Router to Apply Selected Settings</h2>
+      <p class="muted" id="restartCopy">
+        Please wait — do not unplug the box. When it is ready, this page should open Node Status by itself.
+        If nothing happens after a minute, type the address below into the browser address bar and press Enter.
+      </p>
+      <p class="mono" id="restartUrl"></p>
+      <div id="waitProgress" hidden>
+        <progress id="waitProgressBar" max="100" value="0" style="width:100%"></progress>
+        <p class="muted" id="waitProgressLabel"></p>
+      </div>
+      <p class="state busy" id="restartState">Restarting…</p>
+    </section>
+
+    <!-- 9 Done -->
+    <section class="panel setup-step" data-step="9" id="stepDone" hidden>
+      <h2 data-i18n="setup.done.title">You’re set</h2>
+      <p class="muted" data-i18n="setup.done.body">
+        Setup is finished. Next you will see <strong>Node Status</strong> while the Bitcoin node starts
+        and catches up with the network (this can take a long time — that is normal).
+      </p>
+      <p><button type="button" class="btn btn-accent" id="btnDone" data-i18n="setup.done.cta">Go to Node Status</button></p>
+    </section>
+  </div>
+  <script src="i18n.js?v=107a"></script>
+  <script src="shell.js?v=96a"></script>
+  <script src="tls-os.js?v=113a"></script>
+  <script src="setup.js?v=112a"></script>
+</body>
+</html>

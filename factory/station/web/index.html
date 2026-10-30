@@ -1,0 +1,263 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-2.0-only -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RNode Factory Station</title>
+<style>
+  :root { --bg:#f6f4ef; --card:#fff; --ink:#1d1b16; --muted:#6b665c; --line:#e3ddd1; --ok:#1f7a3a; --bad:#b42318;
+          --warn:#a15c00; --accent:#f7931a; --accent-ink:#5b3300; --busy:#2563eb; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14120e; --card:#1e1b16; --ink:#efe9dd; --muted:#a39b8c; --line:#353026;
+          --ok:#4ade80; --bad:#f87171; --warn:#fbbf24; --accent:#f7931a; --accent-ink:#ffe2bd; --busy:#60a5fa; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display:flex; align-items:center; gap:16px; padding:14px 24px; border-bottom:1px solid var(--line); background:var(--card); }
+  header h1 { font-size:18px; margin:0; }
+  .pill { font-size:12px; padding:3px 9px; border-radius:99px; border:1px solid var(--line); color:var(--muted); }
+  .pill.test { border-color:var(--warn); color:var(--warn); font-weight:600; }
+  main { max-width:1200px; margin:0 auto; padding:20px 24px 60px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:16px; }
+  h2 { font-size:16px; margin:0 0 12px; }
+  .problems li { color:var(--bad); }
+  table { border-collapse:collapse; width:100%; }
+  td, th { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); font-size:14px; }
+  th { color:var(--muted); font-weight:600; }
+  button { font:inherit; font-weight:600; padding:9px 18px; border-radius:8px; border:1px solid var(--line);
+           background:var(--card); color:var(--ink); cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#1d1300; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  #recoverCard input { font:inherit; padding:8px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); }
+  .mono { font-family:ui-monospace,Menlo,Consolas,monospace; }
+  input[type=number] { font:inherit; width:80px; padding:8px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); }
+  .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .muted { color:var(--muted); }
+  .bays { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:16px; }
+  .bay h3 { margin:0 0 4px; font-size:16px; display:flex; justify-content:space-between; align-items:center; }
+  .status { font-size:12px; padding:2px 8px; border-radius:99px; border:1px solid currentColor; }
+  .status.running { color:var(--busy); } .status.ok { color:var(--ok); } .status.failed { color:var(--bad); } .status.waiting { color:var(--muted); }
+  .instruction { margin:10px 0; padding:10px 12px; border-left:4px solid var(--accent); background:color-mix(in srgb, var(--accent) 10%, transparent);
+                 font-weight:600; border-radius:0 8px 8px 0; }
+  .instruction:empty { display:none; }
+  .bay .instruction { font-size:18px; padding:14px 16px; }
+  .now { border:2px solid var(--accent); }
+  .now h2 { font-size:15px; text-transform:uppercase; letter-spacing:.04em; color:var(--accent-ink); }
+  .now .act { display:flex; gap:14px; align-items:baseline; padding:10px 0; border-top:1px solid var(--line); }
+  .now .act:first-of-type { border-top:0; }
+  .now .act b { font-size:15px; min-width:70px; }
+  .now .act span { font-size:24px; font-weight:700; line-height:1.25; }
+  .now .act.failed span { color:var(--bad); }
+  .now .act.waiting span { color:var(--muted); font-size:17px; font-weight:500; }
+  @keyframes pulse { 0%,100% { box-shadow:0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } 50% { box-shadow:0 0 0 10px transparent; } }
+  .now.attention { animation:pulse 1.6s infinite; }
+  .steps { list-style:none; padding:0; margin:8px 0; }
+  .steps li { padding:2px 0; font-size:14px; color:var(--muted); }
+  .steps li.done { color:var(--ok); } .steps li.current { color:var(--ink); font-weight:600; }
+  .steps li::before { content:"○ "; } .steps li.done::before { content:"✔ "; } .steps li.current::before { content:"▶ "; }
+  pre { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px; font-size:11.5px; max-height:180px;
+        overflow:auto; white-space:pre-wrap; margin:8px 0 0; }
+  .label-panel { display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap; }
+  .label-panel img { border:1px solid var(--line); background:#fff; image-rendering:pixelated; max-width:100%; }
+  figure { margin:0; } figcaption { font-size:13px; margin-top:4px; }
+  .msg { font-size:17px; font-weight:600; }
+  .msg.bad { color:var(--bad); } .msg.ok { color:var(--ok); }
+  .events { font-size:12.5px; color:var(--muted); max-height:160px; overflow:auto; }
+  @media (max-width:600px) { main { padding:12px 16px; } header { padding:12px 16px; flex-wrap:wrap; } .bays { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>RNode Factory Station</h1>
+  <span class="pill" id="ver">firmware —</span>
+  <span class="pill" id="key">factory key —</span>
+  <span class="pill" id="stage">—</span>
+</header>
+<main>
+  <section class="card" id="setup">
+    <h2>1. Batch</h2>
+    <ul class="problems" id="problems"></ul>
+    <div class="row">
+      <label>Routers in this batch <input type="number" id="count" min="1" max="20" value="1"></label>
+      <button id="btnDetect">Detect routers</button>
+      <span class="muted" id="countHint"></span>
+    </div>
+    <div id="portsBox" hidden>
+      <p class="muted">Serial adapters found — one per bay. Bay numbers follow the USB port the adapter is plugged into.</p>
+      <table><thead><tr><th>Bay</th><th>Serial adapter</th><th>Console</th></tr></thead><tbody id="ports"></tbody></table>
+      <p id="confirmText"></p>
+      <div class="row"><button class="primary" id="btnStart" disabled>Confirm and start the build</button></div>
+    </div>
+  </section>
+
+  <section class="card now" id="nowCard" hidden>
+    <h2>What to do now</h2>
+    <div id="nowList"></div>
+  </section>
+
+  <section class="card" id="labelCard" hidden>
+    <h2>Sticker step</h2>
+    <div class="label-panel">
+      <img id="labelImg" alt="sticker preview" width="540">
+      <div><p class="msg" id="labelMsg"></p><p class="muted">The sticker is a PNG for this dry run (no printer yet).</p></div>
+    </div>
+  </section>
+
+  <section class="card" id="stickersCard" hidden>
+    <h2>Stickers in this batch</h2>
+    <p class="muted">Customer test: join that router's Wi‑Fi from a laptop with the password on its sticker — Setup should open by itself.</p>
+    <div class="label-panel" id="stickers"></div>
+  </section>
+
+  <section id="baysBox" hidden>
+    <div class="bays" id="bays"></div>
+  </section>
+
+  <!-- Lost sticker (owner, 2026-10-25): the password is recalculated from the
+       factory key + MAC — never stored — and a new sticker is printed now. -->
+  <section class="card" id="recoverCard">
+    <h2>Replace a lost sticker</h2>
+    <p class="muted">Type the router’s name (for example <span class="mono">rnode-9e3e</span>, or just
+      <span class="mono">9e3e</span>) or its MAC address. A new sticker with the same password is made and
+      printed straight away.</p>
+    <div class="row">
+      <input id="recRouter" placeholder="rnode-xxxx or MAC" autocomplete="off" style="min-width:16em">
+      <input id="recReason" placeholder="Reason (optional)" autocomplete="off" style="min-width:16em">
+      <button class="primary" id="btnRecover">Make and print new sticker</button>
+    </div>
+    <p class="msg" id="recMsg"></p>
+    <div class="label-panel" id="recSticker"></div>
+  </section>
+
+  <section class="card">
+    <h2>Activity</h2>
+    <div class="events" id="events"></div>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let state = null, countTouched = false;
+
+async function post(path, body) {
+  const r = await fetch(path, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body||{})});
+  const d = await r.json();
+  if (d.error) alert(d.error);
+  return d;
+}
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+function render(s) {
+  state = s;
+  $("ver").textContent = "firmware " + s.version;
+  $("key").textContent = "factory key " + (s.factory_key || "none") + (s.test_key ? " (TEST — not for sale)" : "");
+  $("key").className = "pill" + (s.test_key ? " test" : "");
+  $("stage").textContent = s.stage;
+  if (!countTouched) $("count").value = s.last_batch_size || 1;
+
+  const pr = $("problems"); pr.replaceChildren(...(s.problems || []).map(p => el("li", null, p)));
+  if ((s.problems || []).length) pr.prepend(el("li", null, "Start is disabled until these are fixed:"));
+  const setupStage = s.stage === "setup" || s.stage === "detected";
+  $("setup").hidden = !setupStage;
+  $("btnDetect").disabled = !setupStage;
+
+  if (s.ports && s.ports.length) {
+    $("portsBox").hidden = false;
+    $("ports").replaceChildren(...s.ports.map((p, i) => {
+      const tr = el("tr"); tr.append(el("td", null, String(i + 1)), el("td", null, p.port.replace("/dev/serial/by-path/", "")), el("td", null, p.seen)); return tr;
+    }));
+    const n = Number($("count").value);
+    const ok = n >= 1 && n <= s.ports.length && !(s.problems || []).length;
+    $("confirmText").textContent = n === s.ports.length
+      ? `Build ${n} router${n > 1 ? "s" : ""} on bay${n > 1 ? "s 1–" + n : " 1"}?`
+      : (n < s.ports.length ? `Build ${n} router(s) on bays 1–${n} (${s.ports.length} adapters connected).`
+                            : `${n} routers requested but only ${s.ports.length} serial adapter(s) found — connect one adapter per router.`);
+    $("btnStart").disabled = !ok;
+  }
+  $("countHint").textContent = s.last_batch_size ? `last batch: ${s.last_batch_size}` : "";
+
+  const bays = s.bays || [];
+  $("baysBox").hidden = !bays.length;
+  $("bays").replaceChildren(...bays.map(b => {
+    const c = el("div", "card bay");
+    const h = el("h3", null, `Bay ${b.num}` + (b.unit ? ` — ${b.unit}` : ""));
+    h.append(el("span", "status " + b.status, b.status));
+    c.append(h, el("div", "muted", b.message), el("div", "instruction", b.instruction || ""));
+    const ul = el("ul", "steps");
+    b.steps.forEach(st => ul.append(el("li", (st.done ? "done" : "") + (st.current && !st.done ? " current" : ""), st.title)));
+    c.append(ul);
+    if (b.status === "failed") { const r = el("button", null, "Retry this bay"); r.onclick = () => post("/api/retry", {bay:b.num}); c.append(r); }
+    const pre = el("pre", null, (b.log || []).join("\n")); c.append(pre);
+    setTimeout(() => { pre.scrollTop = pre.scrollHeight; }, 0);
+    return c;
+  }));
+
+  // "What to do now": one line per bay — the action the operator must take
+  const acts = bays.map(b => {
+    const needsYou = !!b.instruction && b.status !== "ok";
+    const d = el("div", "act " + (b.status === "failed" ? "failed" : needsYou ? "" : "waiting"));
+    d.append(el("b", null, "Bay " + b.num), el("span", null,
+      needsYou ? b.instruction : (b.status === "ok" ? "✔ " + b.message : "Working: " + b.message + " — nothing to do")));
+    // the button the instruction talks about, right here (2026-10-26)
+    if (b.status === "failed") {
+      const r = el("button", "primary", "Retry bay " + b.num);
+      r.onclick = () => post("/api/retry", {bay:b.num});
+      d.append(r);
+    }
+    return d;
+  });
+  $("nowCard").hidden = !bays.length;
+  $("nowList").replaceChildren(...acts);
+  const urgent = bays.some(b => b.instruction && b.status !== "ok");
+  $("nowCard").className = "card now" + (urgent ? " attention" : "");
+  const first = bays.find(b => b.instruction && b.status !== "ok");
+  document.title = first ? `▶ Bay ${first.num}: ${first.instruction}` : "RNode Factory Station";
+
+  const lb = bays.find(b => b.num === s.label_bay);
+  $("labelCard").hidden = !(s.label_msg);
+  if (lb && lb.label_png) $("labelImg").src = "/labels/" + lb.label_png;
+  $("labelImg").hidden = !(lb && lb.label_png);
+  // finished stickers stay visible (customer test from a laptop; re-print later)
+  const done = bays.filter(b => b.label_png && b.num !== s.label_bay);
+  $("stickersCard").hidden = !done.length;
+  $("stickers").replaceChildren(...done.map(b => {
+    const f = el("figure"); const img = el("img"); img.src = "/labels/" + b.label_png; img.width = 540; img.alt = "sticker " + b.unit;
+    f.append(img, el("figcaption", "muted", `Bay ${b.num} — ${b.unit} — ${b.mac}`)); return f;
+  }));
+  $("labelMsg").textContent = s.label_msg || "";
+  $("labelMsg").className = "msg" + (s.stage === "stopped" ? " bad" : s.stage === "complete" ? " ok" : "");
+  $("events").replaceChildren(...(s.events || []).slice().reverse().map(e => el("div", null, e)));
+}
+
+async function poll() {
+  try { render(await (await fetch("/api/state", {cache:"no-store"})).json()); } catch (e) {}
+  setTimeout(poll, 1000);
+}
+$("btnRecover").onclick = async () => {
+  const router = $("recRouter").value.trim();
+  if (!router) { $("recMsg").textContent = "Type the router's name or MAC first."; $("recMsg").className = "msg bad"; return; }
+  $("btnRecover").disabled = true; $("recMsg").textContent = "Making the sticker…"; $("recMsg").className = "msg";
+  $("recSticker").replaceChildren();
+  try {
+    const r = await fetch("/api/recover", {method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({router, reason:$("recReason").value.trim()})});
+    const d = await r.json();
+    if (d.error) { $("recMsg").textContent = "✘ " + d.error; $("recMsg").className = "msg bad"; return; }
+    $("recMsg").textContent = `✔ New sticker for ${d.unit} (${d.mac}) — ` +
+      (d.printed ? "printed. Stick it on that router." : "no printer set up yet: the sticker is shown below (dry run).");
+    $("recMsg").className = "msg ok";
+    const img = document.createElement("img"); img.src = "/recovered/" + encodeURIComponent(d.png); img.alt = "sticker for " + d.unit;
+    $("recSticker").replaceChildren(img);
+    $("recRouter").value = ""; $("recReason").value = "";
+  } finally { $("btnRecover").disabled = false; }
+};
+$("count").oninput = () => { countTouched = true; if (state) render(state); };
+$("btnDetect").onclick = async () => { $("btnDetect").disabled = true; $("btnDetect").textContent = "Detecting…";
+  await post("/api/detect"); $("btnDetect").textContent = "Detect again"; $("btnDetect").disabled = false; };
+$("btnStart").onclick = async () => {
+  const n = Number($("count").value);
+  if (!confirm(`Start building ${n} router(s)? Each router: DIP A=1 B=0 (eMMC), no SD card, serial + LAN cable, then power on when asked.`)) return;
+  await post("/api/start", {count:n});
+};
+poll();
+</script>
+</body>
+</html>

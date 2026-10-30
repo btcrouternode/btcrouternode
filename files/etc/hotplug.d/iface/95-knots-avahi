@@ -1,0 +1,50 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# U17/N13 — republish http://rnode.local/ after LAN is up.
+# Avahi started during br-lan flap (boot / factory-reset / IPv6 ULA) can lose
+# the probe and become rnode-2.local. Ubuntu/Firefox resolve .local via mDNS
+# only (not dnsmasq /etc/hosts), so rnode-2 means rnode.local is "not found".
+[ "$ACTION" = "ifup" ] || exit 0
+[ "$INTERFACE" = "lan" ] || exit 0
+# N20: publish this unit's own name rnode-XXXX.local for the current LAN IP —
+# mDNS via knots-mdns-alias (avahi-publish -R), router DNS via dnsmasq addn-hosts
+# (/tmp/hosts). Unique per unit, so several appliances on one LAN each stay
+# reachable even when only one of them can own plain rnode.local.
+if [ -f /usr/libexec/knots/unit-name.sh ]; then
+	. /usr/libexec/knots/unit-name.sh
+	_unit=$(knots_unit_name 2>/dev/null || true)
+	_ip=$(uci -q get network.lan.ipaddr)
+	if [ -n "$_unit" ] && [ -n "$_ip" ]; then
+		mkdir -p /tmp/hosts
+		printf '%s %s.local\n' "$_ip" "$_unit" >/tmp/hosts/knots-unit
+		# mDNS: knots-mdns-alias (avahi-publish -R). NOT the static hosts file —
+		# an entry for our own address collides with rnode.local's reverse record
+		# ("Local name collision" — the unit name was never announced, .103).
+		[ -s /etc/avahi/hosts ] && : >/etc/avahi/hosts
+		/etc/init.d/dnsmasq reload >/dev/null 2>&1 || true
+	fi
+fi
+# First-use captive portal: on until Setup completes, follows the LAN IP
+[ -x /usr/libexec/knots/captive-portal.sh ] && /usr/libexec/knots/captive-portal.sh sync >/dev/null 2>&1
+[ -x /etc/init.d/avahi-daemon ] || exit 0
+# Immediate restart races the IPv6 address add and collides with our own
+# mDNS probe. Wait until br-lan addresses have settled, then retry once if
+# the daemon still renamed itself.
+(
+	sleep 8
+	/etc/init.d/avahi-daemon restart >/dev/null 2>&1 || true
+	sleep 4
+	/etc/init.d/knots-mdns-alias restart >/dev/null 2>&1 || true
+	# X10/N20: avahi appends -2, -3, … — check any suffix, not only -2.
+	if ps w | grep -q 'avahi-daemon: running \[rnode-[0-9]'; then
+		/etc/init.d/avahi-daemon restart >/dev/null 2>&1 || true
+		sleep 4
+		# Still renamed: another device on this LAN really answers rnode.local
+		# (N20 — one appliance per LAN until per-unit names ship with the
+		# label work). Say so instead of restarting forever.
+		if ps w | grep -q 'avahi-daemon: running \[rnode-[0-9]'; then
+			logger -t knots-avahi "rnode.local is taken by another device on this LAN — this unit is reachable by its LAN IP or http://node-router/"
+		fi
+	fi
+) >/dev/null 2>&1 &
+exit 0

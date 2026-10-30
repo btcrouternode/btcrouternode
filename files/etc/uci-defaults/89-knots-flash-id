@@ -1,0 +1,10 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# New random id on every boot that runs uci-defaults — i.e. after a real
+# flash (first boot, keep-settings or -n sysupgrade), never on a plain reboot.
+# Settings status exposes it as flash_id so UAT can prove an upgrade to the
+# SAME build actually flashed (.88: a hand-off bug rebooted without flashing
+# and every same-version check still passed).
+mkdir -p /etc/knots
+cat /proc/sys/kernel/random/uuid >/etc/knots/flash-id 2>/dev/null || date +%s >/etc/knots/flash-id
+exit 0

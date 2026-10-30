@@ -1,0 +1,377 @@
+{
+  "languages": [
+    {
+      "id": "en",
+      "luci": "en",
+      "label": "English"
+    },
+    {
+      "id": "es",
+      "luci": "es",
+      "label": "Español"
+    },
+    {
+      "id": "de",
+      "luci": "de",
+      "label": "Deutsch"
+    },
+    {
+      "id": "fr",
+      "luci": "fr",
+      "label": "Français"
+    },
+    {
+      "id": "zh-cn",
+      "luci": "zh_cn",
+      "label": "简体中文"
+    },
+    {
+      "id": "ja",
+      "luci": "ja",
+      "label": "日本語"
+    },
+    {
+      "id": "pt-br",
+      "luci": "pt_br",
+      "label": "Português (Brasil)"
+    }
+  ],
+  "regions": [
+    {
+      "cc": "AU",
+      "name": "Australia (Sydney)",
+      "zonename": "Australia/Sydney",
+      "timezone": "AEST-10AEDT,M10.1.0,M4.1.0/3"
+    },
+    {
+      "cc": "AU",
+      "name": "Australia (Melbourne)",
+      "zonename": "Australia/Melbourne",
+      "timezone": "AEST-10AEDT,M10.1.0,M4.1.0/3"
+    },
+    {
+      "cc": "AU",
+      "name": "Australia (Brisbane)",
+      "zonename": "Australia/Brisbane",
+      "timezone": "AEST-10"
+    },
+    {
+      "cc": "AU",
+      "name": "Australia (Perth)",
+      "zonename": "Australia/Perth",
+      "timezone": "AWST-8"
+    },
+    {
+      "cc": "AU",
+      "name": "Australia (Adelaide)",
+      "zonename": "Australia/Adelaide",
+      "timezone": "ACST-9:30ACDT,M10.1.0,M4.1.0/3"
+    },
+    {
+      "cc": "NZ",
+      "name": "New Zealand",
+      "zonename": "Pacific/Auckland",
+      "timezone": "NZST-12NZDT,M9.5.0,M4.1.0/3"
+    },
+    {
+      "cc": "US",
+      "name": "United States (Eastern)",
+      "zonename": "America/New_York",
+      "timezone": "EST5EDT,M3.2.0,M11.1.0"
+    },
+    {
+      "cc": "US",
+      "name": "United States (Central)",
+      "zonename": "America/Chicago",
+      "timezone": "CST6CDT,M3.2.0,M11.1.0"
+    },
+    {
+      "cc": "US",
+      "name": "United States (Mountain)",
+      "zonename": "America/Denver",
+      "timezone": "MST7MDT,M3.2.0,M11.1.0"
+    },
+    {
+      "cc": "US",
+      "name": "United States (Pacific)",
+      "zonename": "America/Los_Angeles",
+      "timezone": "PST8PDT,M3.2.0,M11.1.0"
+    },
+    {
+      "cc": "US",
+      "name": "United States (Alaska)",
+      "zonename": "America/Anchorage",
+      "timezone": "AKST9AKDT,M3.2.0,M11.1.0"
+    },
+    {
+      "cc": "US",
+      "name": "United States (Hawaii)",
+      "zonename": "Pacific/Honolulu",
+      "timezone": "HST10"
+    },
+    {
+      "cc": "CA",
+      "name": "Canada (Eastern)",
+      "zonename": "America/Toronto",
+      "timezone": "EST5EDT,M3.2.0,M11.1.0"
+    },
+    {
+      "cc": "CA",
+      "name": "Canada (Pacific)",
+      "zonename": "America/Vancouver",
+      "timezone": "PST8PDT,M3.2.0,M11.1.0"
+    },
+    {
+      "cc": "GB",
+      "name": "United Kingdom",
+      "zonename": "Europe/London",
+      "timezone": "GMT0BST,M3.5.0/1,M10.5.0"
+    },
+    {
+      "cc": "IE",
+      "name": "Ireland",
+      "zonename": "Europe/Dublin",
+      "timezone": "GMT0IST,M3.5.0/1,M10.5.0"
+    },
+    {
+      "cc": "DE",
+      "name": "Germany",
+      "zonename": "Europe/Berlin",
+      "timezone": "CET-1CEST,M3.5.0,M10.5.0/3"
+    },
+    {
+      "cc": "FR",
+      "name": "France",
+      "zonename": "Europe/Paris",
+      "timezone": "CET-1CEST,M3.5.0,M10.5.0/3"
+    },
+    {
+      "cc": "ES",
+      "name": "Spain",
+      "zonename": "Europe/Madrid",
+      "timezone": "CET-1CEST,M3.5.0,M10.5.0/3"
+    },
+    {
+      "cc": "IT",
+      "name": "Italy",
+      "zonename": "Europe/Rome",
+      "timezone": "CET-1CEST,M3.5.0,M10.5.0/3"
+    },
+    {
+      "cc": "NL",
+      "name": "Netherlands",
+      "zonename": "Europe/Amsterdam",
+      "timezone": "CET-1CEST,M3.5.0,M10.5.0/3"
+    },
+    {
+      "cc": "BE",
+      "name": "Belgium",
+      "zonename": "Europe/Brussels",
+      "timezone": "CET-1CEST,M3.5.0,M10.5.0/3"
+    },
+    {
+      "cc": "CH",
+      "name": "Switzerland",
+      "zonename": "Europe/Zurich",
+      "timezone": "CET-1CEST,M3.5.0,M10.5.0/3"
+    },
+    {
+      "cc": "AT",
+      "name": "Austria",
+      "zonename": "Europe/Vienna",
+      "timezone": "CET-1CEST,M3.5.0,M10.5.0/3"
+    },
+    {
+      "cc": "SE",
+      "name": "Sweden",
+      "zonename": "Europe/Stockholm",
+      "timezone": "CET-1CEST,M3.5.0,M10.5.0/3"
+    },
+    {
+      "cc": "NO",
+      "name": "Norway",
+      "zonename": "Europe/Oslo",
+      "timezone": "CET-1CEST,M3.5.0,M10.5.0/3"
+    },
+    {
+      "cc": "DK",
+      "name": "Denmark",
+      "zonename": "Europe/Copenhagen",
+      "timezone": "CET-1CEST,M3.5.0,M10.5.0/3"
+    },
+    {
+      "cc": "FI",
+      "name": "Finland",
+      "zonename": "Europe/Helsinki",
+      "timezone": "EET-2EEST,M3.5.0/3,M10.5.0/4"
+    },
+    {
+      "cc": "PL",
+      "name": "Poland",
+      "zonename": "Europe/Warsaw",
+      "timezone": "CET-1CEST,M3.5.0,M10.5.0/3"
+    },
+    {
+      "cc": "PT",
+      "name": "Portugal",
+      "zonename": "Europe/Lisbon",
+      "timezone": "WET0WEST,M3.5.0/1,M10.5.0"
+    },
+    {
+      "cc": "BR",
+      "name": "Brazil",
+      "zonename": "America/Sao_Paulo",
+      "timezone": "<-03>3"
+    },
+    {
+      "cc": "MX",
+      "name": "Mexico",
+      "zonename": "America/Mexico_City",
+      "timezone": "CST6CDT,M4.1.0,M10.5.0"
+    },
+    {
+      "cc": "AR",
+      "name": "Argentina",
+      "zonename": "America/Argentina/Buenos_Aires",
+      "timezone": "<-03>3"
+    },
+    {
+      "cc": "CL",
+      "name": "Chile",
+      "zonename": "America/Santiago",
+      "timezone": "<-04>4<-03>,M9.1.6/24,M4.1.0/0"
+    },
+    {
+      "cc": "JP",
+      "name": "Japan",
+      "zonename": "Asia/Tokyo",
+      "timezone": "JST-9"
+    },
+    {
+      "cc": "KR",
+      "name": "South Korea",
+      "zonename": "Asia/Seoul",
+      "timezone": "KST-9"
+    },
+    {
+      "cc": "CN",
+      "name": "China",
+      "zonename": "Asia/Shanghai",
+      "timezone": "CST-8"
+    },
+    {
+      "cc": "HK",
+      "name": "Hong Kong",
+      "zonename": "Asia/Hong_Kong",
+      "timezone": "HKT-8"
+    },
+    {
+      "cc": "TW",
+      "name": "Taiwan",
+      "zonename": "Asia/Taipei",
+      "timezone": "CST-8"
+    },
+    {
+      "cc": "SG",
+      "name": "Singapore",
+      "zonename": "Asia/Singapore",
+      "timezone": "<+08>-8"
+    },
+    {
+      "cc": "MY",
+      "name": "Malaysia",
+      "zonename": "Asia/Kuala_Lumpur",
+      "timezone": "<+08>-8"
+    },
+    {
+      "cc": "TH",
+      "name": "Thailand",
+      "zonename": "Asia/Bangkok",
+      "timezone": "<+07>-7"
+    },
+    {
+      "cc": "VN",
+      "name": "Vietnam",
+      "zonename": "Asia/Ho_Chi_Minh",
+      "timezone": "<+07>-7"
+    },
+    {
+      "cc": "IN",
+      "name": "India",
+      "zonename": "Asia/Kolkata",
+      "timezone": "IST-5:30"
+    },
+    {
+      "cc": "ID",
+      "name": "Indonesia",
+      "zonename": "Asia/Jakarta",
+      "timezone": "WIB-7"
+    },
+    {
+      "cc": "PH",
+      "name": "Philippines",
+      "zonename": "Asia/Manila",
+      "timezone": "PST-8"
+    },
+    {
+      "cc": "AE",
+      "name": "United Arab Emirates",
+      "zonename": "Asia/Dubai",
+      "timezone": "<+04>-4"
+    },
+    {
+      "cc": "SA",
+      "name": "Saudi Arabia",
+      "zonename": "Asia/Riyadh",
+      "timezone": "<+03>-3"
+    },
+    {
+      "cc": "IL",
+      "name": "Israel",
+      "zonename": "Asia/Jerusalem",
+      "timezone": "IST-2IDT,M3.4.4/26,M10.5.0"
+    },
+    {
+      "cc": "ZA",
+      "name": "South Africa",
+      "zonename": "Africa/Johannesburg",
+      "timezone": "SAST-2"
+    },
+    {
+      "cc": "NG",
+      "name": "Nigeria",
+      "zonename": "Africa/Lagos",
+      "timezone": "WAT-1"
+    },
+    {
+      "cc": "EG",
+      "name": "Egypt",
+      "zonename": "Africa/Cairo",
+      "timezone": "EET-2"
+    },
+    {
+      "cc": "TR",
+      "name": "Türkiye",
+      "zonename": "Europe/Istanbul",
+      "timezone": "<+03>-3"
+    },
+    {
+      "cc": "RU",
+      "name": "Russia",
+      "zonename": "Europe/Moscow",
+      "timezone": "MSK-3"
+    },
+    {
+      "cc": "UA",
+      "name": "Ukraine",
+      "zonename": "Europe/Kyiv",
+      "timezone": "EET-2EEST,M3.5.0/3,M10.5.0/4"
+    },
+    {
+      "cc": "00",
+      "name": "UTC (no region)",
+      "zonename": "UTC",
+      "timezone": "UTC0"
+    }
+  ]
+}

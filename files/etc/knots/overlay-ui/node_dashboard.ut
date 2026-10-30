@@ -1,0 +1,40 @@
+{# SPDX-License-Identifier: GPL-2.0-only -#}
+{#
+  Fallback Node Dashboard exit page (U1a).
+  Primary path is controller admin/node_dashboard action_exit (logout + redirect).
+-#}
+
+{% include('header') %}
+
+<div class="cbi-map">
+	<h2 name="content">{{ _('Leaving LuCI…') }}</h2>
+	<div class="cbi-map-descr">
+		<p>{{ _('Logging out of router settings and opening the Node Dashboard.') }}</p>
+		<p>
+			<a class="btn cbi-button cbi-button-apply" id="knots-dash-link" href="/">
+				{{ _('Open Node Dashboard') }}
+			</a>
+		</p>
+	</div>
+</div>
+
+<script type="text/javascript">
+(function () {
+	var dash = 'https://' + (function () { var h = (location.hostname || '').toLowerCase(); return /^(rnode\.local|rnode-[0-9a-f]{4}\.local|node-router|knots-router)$|^(10|127)\.\d{1,3}\.\d{1,3}\.\d{1,3}$|^192\.168\.\d{1,3}\.\d{1,3}$|^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(h) ? h : 'rnode.local'; })() + '/';
+	var a = document.getElementById('knots-dash-link');
+	if (a) a.href = dash;
+	function go() { try { window.location.replace(dash); } catch (e) { window.location.href = dash; } }
+	try {
+		fetch('/cgi-bin/luci/admin/logout', {
+			credentials: 'same-origin',
+			redirect: 'manual',
+			cache: 'no-store'
+		}).then(go).catch(go);
+	} catch (e) {
+		go();
+	}
+	setTimeout(go, 800);
+})();
+</script>
+
+{% include('footer') %}

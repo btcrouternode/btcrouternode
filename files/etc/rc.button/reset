@@ -1,0 +1,60 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# BPI-R4 appliance factory reset (N3 + U17).
+#
+# On stock BPI-R4 the silkscreen RST button is hard-wired to SoC reset and is
+# not visible to Linux. OpenWrt maps KEY_RESTART to the WPS button; this
+# handler runs for that button (ACTION/SEEN from procd).
+#
+# Long-press (>=5s): FIRST arm /reset.html UI (LAN browsers redirect), THEN
+# soft factory-reset after a short delay. Never wipe M.2 (S7).
+# Short-press (<1s): reboot.
+# Factory label mode (factory-label.sh): any press only prints RNODE-IDENTIFY.
+
+. /lib/functions.sh
+
+# Factory label mode (factory-label.sh, station-driven, RAM-only, expires): a
+# press of any length only identifies this unit — no reboot, no factory reset.
+LABEL="${KNOTS_LABEL_TOOL:-/usr/libexec/knots/factory-label.sh}"
+if [ -x "$LABEL" ] && "$LABEL" active; then
+	[ "$ACTION" = released ] && "$LABEL" press
+	return 0
+fi
+
+OVERLAY="$(grep ' /overlay ' /proc/mounts)"
+
+case "$ACTION" in
+pressed)
+	[ -z "$OVERLAY" ] && return 0
+	return 5
+	;;
+timeout)
+	. /etc/diag.sh
+	set_state failsafe
+	;;
+released)
+	if [ "$SEEN" -lt 1 ]; then
+		echo "REBOOT" >/dev/console
+		sync
+		reboot
+	elif [ "$SEEN" -ge 5 ] && [ -n "$OVERLAY" ]; then
+		echo "FACTORY RESET UI (appliance N3)" >/dev/console
+		logger -t knots-rc-button "WPS/KEY_RESTART held ${SEEN}s → arm reset page, then factory-reset"
+		# FIRST action: arm reset page so open LAN UIs navigate to /reset.html
+		if [ -f /usr/libexec/knots/factory-reset-ui.sh ]; then
+			# shellcheck disable=SC1091
+			. /usr/libexec/knots/factory-reset-ui.sh
+			factory_reset_ui_arm button
+		else
+			logger -t knots-rc-button "factory-reset-ui.sh missing — continuing reset"
+		fi
+		# Delay so browsers can poll + load the page before node stop / reboot
+		(
+			sleep 5
+			/usr/sbin/factory-reset --confirm RESET
+		) &
+	fi
+	;;
+esac
+
+return 0

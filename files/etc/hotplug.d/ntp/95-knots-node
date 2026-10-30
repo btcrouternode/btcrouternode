@@ -1,0 +1,11 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# The clock is right (BusyBox ntpd: "step" = clock set, "stratum" = synced,
+# "periodic" = still synced, every ~11 min).
+# Record it on the M.2 (clock-floor.sh) and start the node if it was waiting for
+# the correct time — it refused the chain while the clock was behind.
+case "$ACTION" in step|stratum|periodic) ;; *) exit 0 ;; esac
+/usr/libexec/knots/clock-floor.sh stamp >/dev/null 2>&1 || true
+[ "$(cat /tmp/knots/knots.status 2>/dev/null)" = "waiting_clock" ] || exit 0
+( sleep 2; /etc/init.d/knots restart ) >/dev/null 2>&1 </dev/null &
+exit 0

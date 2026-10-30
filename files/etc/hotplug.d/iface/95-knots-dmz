@@ -1,0 +1,18 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# Keep the knots LXC veth enslaved to br-dmz (N1/R8 DMZ plumbing).
+# netifd re-creates br-dmz on network reload/ifup and evicts foreign members —
+# the LXC veth is not netifd-managed, so re-attach it whenever the dmz
+# interface comes up. Reuses the existing helper (knots-start RPC wait uses
+# the same path). No-op when the container is not running.
+# X10/N16 (review 2026-10-11): this lives in hotplug.d/IFACE — it was in
+# hotplug.d/net, whose events carry the device name and add/remove actions,
+# never INTERFACE=dmz with ifup/ifupdate, so it could never fire.
+[ "$INTERFACE" = "dmz" ] || exit 0
+case "$ACTION" in
+	ifup|ifupdate)
+		[ -x /usr/libexec/knots/lxc-ensure.sh ] && \
+			/usr/libexec/knots/lxc-ensure.sh attach-veth >/dev/null 2>&1 || true
+		;;
+esac
+exit 0

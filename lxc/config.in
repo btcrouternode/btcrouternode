@@ -1,0 +1,28 @@
+# LXC config for knots — installed to /srv/lxc/knots/config
+lxc.uts.name = knots
+lxc.rootfs.path = dir:/srv/lxc/knots/rootfs
+lxc.arch = aarch64
+
+lxc.net.0.type = veth
+lxc.net.0.link = br-dmz
+lxc.net.0.flags = up
+lxc.net.0.name = eth0
+lxc.net.0.hwaddr = 02:21:21:21:21:21
+lxc.net.0.ipv4.address = 21.21.21.21/24
+lxc.net.0.ipv4.gateway = 21.21.21.1
+lxc.net.0.ipv6.address = fd21:21:21::21/64
+lxc.net.0.ipv6.gateway = fd21:21:21::1
+
+# Datadir on M.2
+lxc.mount.entry = /mnt/bitcoin mnt/bitcoin none bind,create=dir 0 0
+
+# Autostart managed by knots-start.sh after storage gate
+lxc.start.auto = 0
+
+lxc.cap.drop = sys_module mac_admin mac_override sys_time
+# No lxc.signal.halt: the baked init is a dash sleep loop with no signal
+# handlers, so a halt-signal line is a no-op. Graceful stop is RPC-first
+# via knots-start.sh / bitcoind-ctl.sh before lxc-stop (U18).
+
+# Avoid host proc/sys issues on OpenWrt
+lxc.mount.auto = proc:mixed sys:ro cgroup:mixed

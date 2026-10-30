@@ -1,0 +1,3 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+exec /usr/libexec/knots/node-impl-api.sh cgi

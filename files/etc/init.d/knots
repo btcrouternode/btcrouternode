@@ -1,0 +1,49 @@
+#!/bin/sh /etc/rc.common
+# SPDX-License-Identifier: GPL-2.0-only
+# Persist Knots LXC + bitcoind across reboots (F30).
+# uci-defaults 99-bitcoin-node only ran once on first boot — that left the node
+# STOPPED after every power cycle until manually started.
+#
+# Graceful stop runs on software reboot/poweroff (LuCI, `reboot`, `poweroff`).
+# Pulling the power cord cannot be graceful — next boot recovers via ext4 journal
+# + bitcoind chainstate verify; this service still auto-starts the node.
+
+START=97
+STOP=15
+
+boot() {
+	start
+}
+
+start() {
+	mkdir -p /tmp/knots
+	echo "starting" >/tmp/knots/knots.status
+	# Non-blocking: the M.2 mount wait (up to ~60 s after unclean power, or
+	# forever-absent without an M.2) and a long chainstate load must not stall
+	# boot — X10/N19: the mount wait used to run in the foreground.
+	(
+		# fstab / block mount may still be settling after unclean power
+		i=0
+		while [ "$i" -lt 30 ]; do
+			if grep -q ' /mnt/bitcoin ' /proc/mounts 2>/dev/null; then
+				break
+			fi
+			/usr/libexec/knots/storage-prepare.sh >/dev/null 2>&1 || true
+			sleep 2
+			i=$((i + 1))
+		done
+		/usr/libexec/knots/knots-start.sh start >>/tmp/knots/knots-boot.log 2>&1 || \
+			logger -t knots "boot start failed (see /tmp/knots/knots-boot.log)"
+	) &
+}
+
+stop() {
+	# Ordered flush when the OS is shutting down cleanly
+	/usr/libexec/knots/knots-start.sh stop >>/tmp/knots/knots-boot.log 2>&1 || true
+}
+
+restart() {
+	stop
+	sleep 2
+	start
+}
