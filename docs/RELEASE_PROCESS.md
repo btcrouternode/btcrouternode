@@ -59,7 +59,7 @@ checksum and key files live (not confirmed when this document was written).
 | **Branches & versions** | `main` for development; a **release branch per OpenWrt stable series** (e.g. `rnode-24.10`); release candidates (`…-rc1`); **maintenance releases** when OpenWrt ships a service release, **Core** a point release, or RNode needs a fix. Version = **`{OpenWrt}.{Core}.{build}`** (e.g. `24.10.8.29.4.119`) — changing from today's `{OpenWrt}.{Knots}.{build}`; the build number keeps counting up | OpenWrt + Core |
 | **Upstream inputs** | Every upstream file is **pinned by SHA256** (already: Image Builder, Core, Knots, Debian image) **and** checked with the upstream project's **own signatures** when the version changes — OpenWrt's signed checksums and Core's multi-signer `SHA256SUMS.asc` (and each other offered implementation's own release signatures, e.g. Knots) — by a script whose output is kept with the release | both |
 | **Reproducible builds** | Goal: anyone who builds a release tag gets the **same SHA256** (fixed inputs, fixed time stamps, no unpinned downloads during the build) | Core |
-| **Attestations** | A second public repository, **`rnode-sigs`**: per release, each builder's folder holds `SHA256SUMS` and their PGP signature `SHA256SUMS.asc` | Core (guix.sigs) |
+| **Attestations** | A second public repository, **[`btcrouternode.sigs`](https://github.com/btcrouternode/btcrouternode.sigs)**: per release, each builder's folder (`<version>/<builder>/`) holds `SHA256SUMS` and their PGP signature `SHA256SUMS.asc` | Core (guix.sigs) |
 | **Firmware signature (on the router)** | **usign** (OpenWrt's tool), appended to the image; the router accepts only images signed by a **maintainer's firmware key**. Each maintainer has **their own** usign key, and **signs its public half with their PGP key** (PGP identity → firmware key → release) | OpenWrt (usign) + Core (one key per person) |
 | **Downloads** | Published with `SHA256SUMS` and `SHA256SUMS.asc` (signed by each maintainer who built or checked it) | both |
 | **Source for every release** | The signed tag is the exact source. For the GPL components, each release lists the exact OpenWrt release, Image Builder and package versions it was built from (their source is on OpenWrt's mirrors) and offers it with the firmware (GPL-2.0 section 3) | OpenWrt / GPL |
@@ -113,7 +113,7 @@ Each maintainer looks after **their own** keys — there is no shared project ke
    (after reproducible builds) the SHA256s must match.
 5. **Firmware signature**: offline, with a maintainer's firmware key
    (`rnode-offline.sh`, choice "sign"); `make store-release`.
-6. **Attest**: each maintainer commits `SHA256SUMS` + their `SHA256SUMS.asc` to `rnode-sigs`.
+6. **Attest**: each maintainer commits `SHA256SUMS` + their `SHA256SUMS.asc` to `btcrouternode.sigs` (`<version>/<name>/`).
 7. **Publish**: the signed image, `SHA256SUMS`, `SHA256SUMS.asc`, release notes,
    and the source / GPL notice; the factory station installs the signed release.
 
@@ -123,6 +123,6 @@ Each maintainer looks after **their own** keys — there is no shared project ke
 
 | Phase | What |
 |-------|------|
-| **1 — now** | Public repository (fresh history from Release 1, without internal lab notes) + `rnode-sigs`; `CONTRIBUTING.md` (forks, pull requests, Signed-off-by, review), `SECURITY.md`, `MAINTAINERS`; each maintainer's PGP identity and firmware key made offline; the first public release trusts the owner's and the partner's firmware keys; signed merges, tags and `SHA256SUMS.asc`; SSH-only pushes |
+| **1 — now** | Public repository (fresh history from Release 1, without internal lab notes) + `btcrouternode.sigs`; `CONTRIBUTING.md` (forks, pull requests, Signed-off-by, review), `SECURITY.md`, `MAINTAINERS`; each maintainer's PGP identity and firmware key made offline; the first public release trusts the owner's and the partner's firmware keys; signed merges, tags and `SHA256SUMS.asc`; SSH-only pushes |
 | **2** | Reproducible builds; upstream-signature check script; routers require **two** maintainers' signatures |
 | **3** | More maintainers and independent builders from the community; trust list changes by signed release only |
