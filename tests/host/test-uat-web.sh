@@ -11,7 +11,6 @@ DOC="$ROOT/docs/UAT_WEB.md"
 [ -f "$PY" ] || { echo "FAIL: missing uat-web.py"; exit 1; }
 [ -f "$WIZ" ] || { echo "FAIL: missing uat_wizard.py"; exit 1; }
 [ -f "$SH" ] || { echo "FAIL: missing uat-web.sh"; exit 1; }
-[ -f "$DOC" ] || { echo "FAIL: missing docs/UAT_WEB.md"; exit 1; }
 chmod +x "$PY" "$SH" "$WIZ"
 
 python3 -m py_compile "$PY" "$WIZ" || { echo "FAIL: uat-web.py / uat_wizard.py syntax"; exit 1; }
@@ -29,14 +28,19 @@ grep -q 'open_luci_and_return' "$WIZ" || { echo "FAIL: Node UI walk must open Lu
 grep -q 'btnQuickSubmit' "$WIZ" || { echo "FAIL: Quick Start must click Finish setup"; exit 1; }
 grep -q 'btnGuided' "$WIZ" || { echo "FAIL: Guided must click Guided Setup"; exit 1; }
 grep -q 'btnDone' "$WIZ" || { echo "FAIL: Guided must click Go to Node Status"; exit 1; }
-grep -q 'Playwright' "$DOC" || { echo "FAIL: docs must say IUE runs in a real browser"; exit 1; }
 grep -q 'Linux x86_64' "$WIZ" || { echo "FAIL: IUE browser must look like a Linux Chrome user"; exit 1; }
 grep -q 'wget' "$WIZ" || { echo "FAIL: IUE must assert the Linux Terminal one-liner"; exit 1; }
 grep -q 'iue_guided' "$PY" || { echo "FAIL: suite must drive Guided Setup"; exit 1; }
 grep -q 'node_start' "$PY" || { echo "FAIL: suite must exercise Start"; exit 1; }
 grep -q 'already_running' "$PY" || { echo "FAIL: suite must assert Start-while-running"; exit 1; }
 grep -q 'storage.html' "$PY" || { echo "FAIL: suite must assert no wipe page"; exit 1; }
-grep -q 'KNOTS_UAT_SHUTDOWN' "$DOC" || { echo "FAIL: docs must skip shutdown by default"; exit 1; }
+# The UAT write-up (lab details) is kept out of the public repository.
+if [ -f "$DOC" ]; then
+	grep -q 'Playwright' "$DOC" || { echo "FAIL: docs must say IUE runs in a real browser"; exit 1; }
+	grep -q 'KNOTS_UAT_SHUTDOWN' "$DOC" || { echo "FAIL: docs must skip shutdown by default"; exit 1; }
+	grep -q 'Documents/knots-uat' "$DOC" || { echo "FAIL: docs must tell the user to run ~/Documents/knots-uat/run"; exit 1; }
+	grep -q 'last-run.log' "$DOC" || { echo "FAIL: docs must point at results/last-run.log"; exit 1; }
+fi
 ! grep -q 'jffs2reset' "$PY" || { echo "FAIL: suite must not call jffs2reset"; exit 1; }
 ! grep -q '/dev/ttyUSB' "$PY" || { echo "FAIL: suite must not use serial"; exit 1; }
 
@@ -49,13 +53,9 @@ grep -q 'security_then_after_tls' "$PY" || { echo "FAIL: IUE must use after_tls 
 grep -q 'GUIDED_SSID' "$PY" || { echo "FAIL: Guided UAT must pass custom SSID"; exit 1; }
 grep -q 'GUIDED_DHCP_START' "$PY" || { echo "FAIL: Guided UAT must pass custom LAN DHCP start"; exit 1; }
 
-grep -q 'Documents/knots-uat' "$DOC" || {
-	echo "FAIL: docs must tell the user to run ~/Documents/knots-uat/run"; exit 1
-}
 grep -q 'last-run.log' "$PY" || { echo "FAIL: suite must write last-run.log"; exit 1; }
 grep -q 'last-run.json' "$PY" || { echo "FAIL: suite must write last-run.json"; exit 1; }
 grep -q 'write_summary' "$PY" || { echo "FAIL: suite must persist a JSON summary"; exit 1; }
-grep -q 'last-run.log' "$DOC" || { echo "FAIL: docs must point at results/last-run.log"; exit 1; }
 grep -q 'HTTPCookieProcessor' "$PY" || {
 	echo "FAIL: LuCI login needs a cookie jar"; exit 1
 }
