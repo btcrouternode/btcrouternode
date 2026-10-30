@@ -20,6 +20,25 @@
 >    is one built into the release, the signature verifies like the router) and
 >    asks only for clicks in Disks, Enter and **y**. Write down what it shows.
 >
+> **Signing a release (2026-10-31).** Before booting the live USB: Wi-Fi and
+> Bluetooth off, every network cable unplugged. In the live session open
+> **Files** → the laptop's own drive (about 127 GB) → `home/<user>/rnode-sign`
+> and copy that folder's path; in a **Terminal**:
+>
+> ```bash
+> cd <the copied path>
+> sudo bash sign.sh
+> ```
+>
+> It shows the tools fingerprint to compare with the build PC's number, checks
+> the laptop is offline and the release fingerprint, asks for key stick A and
+> its password, signs, verifies like the router and leaves the result in
+> `signed/`. The fingerprint is printed by the script itself: it catches a
+> damaged or wrong folder, and the build PC re-checks the signed image against
+> the exact build before it is stored (`make store-release`). Do not stage on
+> the boot stick: the live system takes over its "writable" partition
+> (/var/crash) and clears it.
+>
 > The manual steps below are the same work by hand (background / fallback).
 > Note: this live system opens drives under `/run/media/<user>/`, not `/media/`.
 

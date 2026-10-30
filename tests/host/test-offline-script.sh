@@ -12,6 +12,7 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
 [ -f "$ROOT/bin/offline-tools/rnode-keygen/rnode-offline.sh" ] || { echo "SKIP: make offline-tools"; exit 0; }
 cmp -s "$ROOT/bin/offline-tools/rnode-keygen/rnode-offline.sh" "$ROOT/factory/offline/rnode-offline.sh" \
+	&& cmp -s "$ROOT/bin/offline-tools/rnode-keygen/sign-release.sh" "$ROOT/factory/offline/sign-release.sh" \
 	|| fail "bin/offline-tools is out of date (make offline-tools)"
 sh "$ROOT/build/stage-offline.sh" keys >/dev/null || fail "stage keys"
 cp -r "$ROOT/bin/offline-stage/rnode-sign" "$W/rnode-sign"; R="$W/rnode-sign"; K="$R/rnode-keygen"
@@ -59,6 +60,21 @@ cp "$R/signed/fake.itb" "$W/v.itb"; "$K/usign/bin/fwtool" -q -t -s "$W/v.sig" "$
 cmp -s "$W/v.itb" "$R/unsigned/fake.itb" || fail "stripping the signature must give back the exact release"
 grep -q "$(sha256sum "$R/signed/fake.itb" | cut -d' ' -f1)" "$W/sign.out" || fail "signed fingerprint must be shown"
 pass "sign: tools + release checked, signed with key A, verified like the router, signed fingerprint shown"
+
+# sign-release.sh (the one-line path): refuses while online, before any signing
+rm -f "$R/signed/fake.itb"
+out=$(printf 'y\ny\n\ny\n\n' | RNODE_OFFLINE_FAKE_ONLINE=1 bash "$K/sign-release.sh" 2>&1) && fail "sign-release must refuse while online"
+echo "$out" | grep -q "this laptop is ONLINE" || fail "online message: $out"
+[ ! -e "$R/signed/fake.itb" ] || fail "nothing may be signed while online"
+printf 'y\ny\n\ny\n\n' | bash "$K/sign-release.sh" >"$W/sr.out" 2>&1 || fail "sign-release: $(cat "$W/sr.out")"
+grep -q "Offline: no network connection" "$W/sr.out" && grep -q "signed with key $fpA and verified like the router does" "$W/sr.out" ||
+	fail "sign-release: $(cat "$W/sr.out")"
+cp "$R/signed/fake.itb" "$W/v2.itb"; "$K/usign/bin/fwtool" -q -t -s "$W/v2.sig" "$W/v2.itb" >/dev/null 2>&1 || true
+"$U" -V -q -m "$W/v2.itb" -P "$R/release-keys" -x "$W/v2.sig" || fail "sign-release: signed file must verify"
+grep -q "sign-release.sh" "$K/SHA256SUMS" || fail "sign-release.sh must be covered by the tools fingerprint"
+grep -q 'sign-release.sh' "$ROOT/factory/offline/sign.sh" && grep -q 'factory/offline/sign.sh' "$ROOT/build/stage-offline.sh" ||
+	fail "the staged folder needs sign.sh, which runs the fingerprinted sign-release.sh"
+pass "sign-release: refuses online, signs offline like choice 2, covered by the tools fingerprint; sign.sh staged"
 
 expected "$rsha" "0000000000000000"
 out=$(printf 'y\ny\n\ny\n' | bash "$K/rnode-offline.sh" 2 2>&1) && fail "a key not built into the release must be refused"

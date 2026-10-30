@@ -23,8 +23,8 @@ mkdir -p "$K/usign/bin" "$K/usign/lib" "$K/public"
 cp "$H/bin/usign" "$H/bin/.usign.bin" "$H/bin/fwtool" "$H/bin/.fwtool.bin" "$K/usign/bin/"
 cp "$H/lib/ld-linux-x86-64.so.2" "$H/lib/libc.so.6" "$H/lib/runas.so" "$K/usign/lib/"
 chmod 755 "$K/usign/bin/usign" "$K/usign/bin/.usign.bin" "$K/usign/bin/fwtool" "$K/usign/bin/.fwtool.bin" "$K/usign/lib/ld-linux-x86-64.so.2"
-cp "$ROOT/factory/release-keygen.sh" "$ROOT/factory/sign-image.sh" "$ROOT/factory/offline/rnode-offline.sh" "$K/"
-chmod 755 "$K/release-keygen.sh" "$K/sign-image.sh" "$K/rnode-offline.sh"
+cp "$ROOT/factory/release-keygen.sh" "$ROOT/factory/sign-image.sh" "$ROOT/factory/offline/rnode-offline.sh" "$ROOT/factory/offline/sign-release.sh" "$K/"
+chmod 755 "$K/release-keygen.sh" "$K/sign-image.sh" "$K/rnode-offline.sh" "$K/sign-release.sh"
 cp "$ROOT/factory/OFFLINE-KEYGEN.md" "$K/README.md"
 ( cd "$K" && find . -type f ! -name SHA256SUMS ! -path './public/*' | sort | xargs sha256sum >SHA256SUMS )
 # Prove the copy works the way the guide uses it: copied off the stick (FAT

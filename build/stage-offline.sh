@@ -31,6 +31,9 @@ IMG="$ROOT/bin/targets/mediatek/filogic/$REL"
 OUT="$ROOT/bin/offline-stage/rnode-sign"
 rm -rf "$OUT"; mkdir -p "$OUT/unsigned" "$OUT/signed" "$OUT/release-keys"
 cp -r "$TOOLS" "$OUT/rnode-keygen"
+# Owner 2026-10-31: in the live session, browse to this folder, cd into it,
+# sudo bash sign.sh — it asks for everything else.
+cp "$ROOT/factory/offline/sign.sh" "$OUT/"; chmod 755 "$OUT/sign.sh"
 [ -f "$TOOLS/rnode-offline.sh" ] || { echo "offline tools are older than rnode-offline.sh — run: make offline-tools" >&2; exit 1; }
 cmp -s "$TOOLS/rnode-offline.sh" "$ROOT/factory/offline/rnode-offline.sh" || { echo "offline tools out of date — run: make offline-tools" >&2; exit 1; }
 tools_sha=$(cd "$OUT/rnode-keygen" && sha256sum SHA256SUMS | cut -d' ' -f1)
@@ -64,4 +67,5 @@ echo "  tools SHA256:   $tools_sha"
 if [ -n "$STATION" ]; then
 	rsync -a --delete --exclude new-public/ --exclude "new-public.*/" --exclude new/ --exclude "dead-*/" --exclude identity/ "$OUT/" "$STATION:rnode-sign/"
 	echo "Copied to $STATION:rnode-sign/"
+	echo "Live session: browse to rnode-sign on the laptop's drive, cd into it, sudo bash sign.sh"
 fi
