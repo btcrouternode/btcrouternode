@@ -159,23 +159,28 @@ done
 sed -i "s| /proc/mounts| $SB/proc-mounts|g" "$SB/libexec/node-impl-lib.sh"
 printf 'tmpfs %s tmpfs rw,relatime 0 0\n' "$SB/m2" >"$SB/proc-mounts"
 chmod +x "$SB/libexec/node-impl.sh"
-# Stubs: no syslog, no LXC on the host (lxc-attach fails → filename version label)
+# Stubs: no syslog; a fake LXC: no bitcoind running, start succeeds, the
+# running cmdline is the Core node-bin binary, -version fails (→ the filename
+# gives the version label). Core is the only (active) node since build 120, so
+# an install restarts the node.
 printf '#!/bin/sh\nexit 0\n' >"$SB/bin/logger"
-printf '#!/bin/sh\nexit 1\n' >"$SB/bin/lxc-attach"
+cat >"$SB/bin/lxc-attach" <<'STUB'
+#!/bin/sh
+case "$*" in
+	*cmdline*) echo "/mnt/bitcoin/node-bin/core/bin/bitcoind -conf=/etc/bitcoin/bitcoin.conf"; exit 0 ;;
+	*pidof*) exit 1 ;;
+	*-version*) exit 1 ;;
+	*) exit 0 ;;
+esac
+STUB
 chmod +x "$SB/bin/logger" "$SB/bin/lxc-attach"
 
 # Factory-seeded node-bin state (mirrors device after ensure_layout seeding).
-# Active impl pinned to knots: since B15 made Core the default, an unconfigured
-# device would read active=core and take the restart path (untestable without
-# LXC); this fixture covers the supported no-restart install path.
-mkdir -p "$SB/m2/node-bin/knots/bin" "$SB/m2/node-bin/core/bin"
-make_aarch64_stub "$SB/m2/node-bin/knots/bin/bitcoind"
-make_aarch64_stub "$SB/m2/node-bin/knots/bin/bitcoin-cli"
-echo "v29.3.knots20260507" >"$SB/m2/node-bin/knots/VERSION"
+mkdir -p "$SB/m2/node-bin/core/bin"
 make_aarch64_stub "$SB/m2/node-bin/core/bin/bitcoind"
 make_aarch64_stub "$SB/m2/node-bin/core/bin/bitcoin-cli"
 echo "v-old" >"$SB/m2/node-bin/core/VERSION"
-echo knots >"$SB/m2/.node-impl"
+echo core >"$SB/m2/.node-impl"
 
 # Stage exactly like the CGI does: body saved under the original filename
 UP="$SB/m2/.node-uploads"
@@ -203,23 +208,21 @@ fi
 grep -q 'aarch64' "$TMP/refuse.err"
 echo "OK: real node-impl.sh install-from via CGI-shaped staging"
 
-# --- X7 (review 2026-10-11): the Core-DEFAULT path (fresh unit: no impl
-# recorded on M.2 or in /etc). status must report active core, and installing
-# the inactive implementation (knots) must take the no-restart path.
+# --- X7 (review 2026-10-11): the Core path on a fresh unit (no impl recorded
+# on M.2 or in /etc) reads active=core. Knots is gone since build 120: an
+# install of it is refused and nothing lands under node-bin/knots.
 rm -f "$SB/m2/.node-impl" "$SB/etcknots/node-impl"
 st=$(PATH="$SB/bin:$PATH" "$SB/libexec/node-impl.sh" status)
 printf '%s' "$st" | grep -q '"active":"core"' || { echo "FAIL: no recorded impl must read active=core: $st"; exit 1; }
+printf '%s' "$st" | grep -q '"knots":{"installed":false' || { echo "FAIL: Knots must report not installed: $st"; exit 1; }
 STAGED_K="$UP/bitcoin-29.3.knots20260507-aarch64-linux-gnu.tar.gz"
 cp "$TGZ" "$STAGED_K"
-if ! out=$(PATH="$SB/bin:$PATH" "$SB/libexec/node-impl.sh" \
-		install-from knots "$STAGED_K" "$SHA" INSTALL); then
-	echo "FAIL: install of the inactive impl under the Core default refused: $out"; exit 1
+if out=$(PATH="$SB/bin:$PATH" "$SB/libexec/node-impl.sh" \
+		install-from knots "$STAGED_K" "$SHA" INSTALL 2>&1); then
+	echo "FAIL: a Knots install must be refused: $out"; exit 1
 fi
-echo "$out" | grep -q 'installed knots' || { echo "FAIL: knots install output: $out"; exit 1; }
-grep -qx 'v29.3.knots20260507' "$SB/m2/node-bin/knots/VERSION" \
-	|| { echo "FAIL: knots version label from file name: $(cat "$SB/m2/node-bin/knots/VERSION")"; exit 1; }
-[ ! -e "$SB/m2/.node-impl" ] || [ "$(cat "$SB/m2/.node-impl")" = core ] \
-	|| { echo "FAIL: installing knots must not switch the active impl"; exit 1; }
-echo "OK: Core default — status active=core, inactive knots install without switching"
+echo "$out" | grep -q 'no longer part of btcrouternode' || { echo "FAIL: knots refusal message: $out"; exit 1; }
+[ ! -e "$SB/m2/node-bin/knots" ] || { echo "FAIL: nothing may be written to node-bin/knots"; exit 1; }
+echo "OK: fresh unit reads active=core; a Knots install is refused"
 
 echo "PASS: node-bin install-from + rollback + sha256 + U11 wiring"

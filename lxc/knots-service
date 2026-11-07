@@ -1,5 +1,7 @@
 #!/bin/sh
-# Start/stop active bitcoind (Core default, or Knots). Bins on shared M.2 (B15/B17).
+# Start/stop bitcoind (Bitcoin Core). Bins on the shared M.2 (B15/B17).
+# Knots was dropped in build 120: a .node-impl saying "knots" (older firmware)
+# means Core now — same datadir, no re-download.
 set -e
 PIDFILE=/run/bitcoind.pid
 CONF=/etc/bitcoin/bitcoin.conf
@@ -22,17 +24,8 @@ m2_mounted() {
 }
 
 active_impl() {
-	# Inside LXC only M.2 is authoritative (host keeps /etc/knots backup).
-	# Do not create default state when unmounted — that would write onto overlay.
-	if ! m2_mounted; then
-		echo knots
-		return
-	fi
-	impl=$(cat "$STATE" 2>/dev/null || echo knots)
-	case "$impl" in
-		core) echo core ;;
-		*) echo knots ;;
-	esac
+	# Bitcoin Core is the only implementation (build 120).
+	echo core
 }
 
 resolve_bins() {
@@ -60,7 +53,7 @@ cmdline_of() {
 
 # True if running bitcoind is the selected implementation binary.
 # Accept list must mirror resolve_bins (L-knots-service): node-bin path,
-# in-rootfs per-impl path, and (knots only) the legacy flat path — otherwise
+# in-rootfs per-impl path, and the flat /usr/local/bin path — otherwise
 # a correct binary looks "mismatched" and gets restarted in a churn loop.
 correct_binary_running() {
 	pid=$(running_pid)
@@ -69,8 +62,8 @@ correct_binary_running() {
 	impl=$(active_impl)
 	echo "$cmd" | grep -q "node-bin/${impl}/bin/bitcoind" && return 0
 	echo "$cmd" | grep -q "/usr/local/lib/bitcoin/${impl}/bin/bitcoind" && return 0
-	# legacy flat path only acceptable for knots
-	[ "$impl" = knots ] && echo "$cmd" | grep -q "/usr/local/bin/bitcoind" && return 0
+	# the flat path is a symlink to Core since build 120
+	echo "$cmd" | grep -q "/usr/local/bin/bitcoind" && return 0
 	return 1
 }
 
@@ -106,8 +99,8 @@ case "${1:-}" in
 		resolve_bins
 		mkdir -p /mnt/bitcoin /run
 		# Only create default when mounted and missing — never invent onto overlay
-		if [ ! -f "$STATE" ]; then
-			printf 'knots\n' >"$STATE"
+		if [ ! -f "$STATE" ] || [ "$(cat "$STATE" 2>/dev/null)" != core ]; then
+			printf 'core\n' >"$STATE"
 			sync "$STATE" 2>/dev/null || sync
 		fi
 		if correct_binary_running; then

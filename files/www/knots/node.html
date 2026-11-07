@@ -13,7 +13,7 @@
     <header class="brand">
       <p class="eyebrow">BPI-R4 appliance</p>
       <h1>Bitcoin Node - Running Bitcoin Core</h1>
-      <p class="tagline">Choose Knots or Core, and install official aarch64 releases. The blockchain stays on the same disk.</p>
+      <p class="tagline">Bitcoin Core on this router: install official aarch64 releases or roll back. The blockchain stays on the same disk.</p>
     </header>
 
     <p id="banner" class="muted" hidden></p>
@@ -30,16 +30,8 @@
 
     <section class="metrics">
       <div class="metric wide">
-        <span class="k">Active (M.2 preference)</span>
-        <span class="v" id="active">—</span>
-      </div>
-      <div class="metric">
-        <span class="k">Factory default</span>
-        <span class="v" id="factoryDefault">Bitcoin Core</span>
-      </div>
-      <div class="metric">
-        <span class="k">Knots installed</span>
-        <span class="v mono" id="knotsVer">—</span>
+        <span class="k">Node software</span>
+        <span class="v" id="active">Bitcoin Core</span>
       </div>
       <div class="metric">
         <span class="k">Core installed</span>
@@ -56,61 +48,31 @@
     </section>
 
     <p class="muted" id="implExplain">
-      The image ships with Bitcoin Core as the factory default. Your M.2 stores the last chosen
-      implementation; that preference wins after every reboot (it is not a mismatch).
+      This router runs Bitcoin Core. Bitcoin Knots is no longer part of btcrouternode (since
+      build 120): a router that ran Knots switched to Core by itself, keeping its chain data.
     </p>
 
-    <div id="knotsAdvisory" class="warn" hidden></div>
-
-    <section class="panel">
-      <h2>Switch implementation</h2>
+    <section class="panel" data-u11="install">
+      <h2>Install or replace Bitcoin Core</h2>
       <p class="muted">
-        Knots and Core share the same M.2 datadir. A normal switch restarts the node and
-        <strong>does not wipe the chain</strong>. Wallet files on that disk are
-        <strong>intended to be the same keys</strong> under either implementation.
+        Upload an official Bitcoin Core <span class="mono">*-aarch64-linux-gnu.tar.gz</span> from
+        bitcoincore.org. Files land on the M.2 under
+        <span class="mono">node-bin/</span>. The previous install is kept for rollback.
+        Chain data is never wiped.
       </p>
-      <p>
-        <label><input type="radio" name="impl" value="knots" id="rKnots" /> Bitcoin Knots</label>
-      </p>
-      <p>
-        <label><input type="radio" name="impl" value="core" id="rCore" /> Bitcoin Core (default, recommended)</label>
-      </p>
+      <input type="hidden" id="installImpl" value="core" />
 
       <div id="walletWarn" class="warn" hidden data-u7a="wallet-switch-warn">
         <strong>Wallet detected on this appliance.</strong>
-        Switching or replacing binaries is <strong>not recommended</strong> when a wallet is present.
+        Replacing binaries is <strong>not recommended</strong> when a wallet is present.
         Keys are meant to stay on the shared disk, but if the wallet fails to load after a change
         you may need your offline backup / descriptor recovery material to regain access to funds.
-        Prefer staying on the current software unless you have verified that backup.
         <label class="phrase" style="display:block;margin-top:0.75rem;text-transform:none;letter-spacing:0;font-size:0.9rem;font-weight:600;color:inherit">
           <input type="checkbox" id="walletAck" />
           I understand the risk and have (or accept needing) an offline wallet backup before changing node software.
         </label>
         <p class="muted" id="walletNames" style="margin:0.5rem 0 0"></p>
       </div>
-
-      <label>Type <strong>SWITCH</strong> to confirm (restarts the node; does not wipe the chain)
-        <input id="confirm" type="text" autocomplete="off" placeholder="SWITCH" />
-      </label>
-      <button type="button" class="btn btn-accent" id="btnApply">Apply</button>
-    </section>
-
-    <section class="panel" data-u11="install">
-      <h2>Install or replace binaries</h2>
-      <p class="muted">
-        Upload an official <span class="mono">*-aarch64-linux-gnu.tar.gz</span> from
-        bitcoinknots.org or bitcoincore.org. Files land on the M.2 under
-        <span class="mono">node-bin/</span>. The previous install is kept for rollback.
-        Chain data is never wiped.
-      </p>
-      <p>
-        <label>Target
-          <select id="installImpl">
-            <option value="knots">Bitcoin Knots</option>
-            <option value="core">Bitcoin Core</option>
-          </select>
-        </label>
-      </p>
       <p>
         <label>Release tarball
           <input id="tarball" type="file" accept=".gz,.tgz,application/gzip" />
@@ -130,12 +92,7 @@
 
     <section class="panel" data-u11="rollback">
       <h2>Rollback previous install</h2>
-      <p class="muted">Restores the last replaced tree for that implementation (if available).</p>
-      <p>
-        <span class="k">Knots previous:</span>
-        <span class="mono" id="knotsPrev">—</span>
-        <button type="button" class="btn" id="btnRollbackKnots" disabled>Rollback Knots</button>
-      </p>
+      <p class="muted">Restores the previously installed Bitcoin Core (if available).</p>
       <p>
         <span class="k">Core previous:</span>
         <span class="mono" id="corePrev">—</span>
@@ -147,12 +104,11 @@
     </section>
 
     <footer class="sep">
-      <p>Shared datadir on M.2 — switching and installs never reformat storage.</p>
+      <p>Chain data on the M.2 — installs and rollbacks never reformat storage.</p>
     </footer>
   </div>
   <script src="i18n.js?v=107a"></script>
   <script src="shell.js?v=96a"></script>
-  <script src="node-advisory.js?v=119a"></script>
-  <script src="node.js?v=119a"></script>
+  <script src="node.js?v=120a"></script>
 </body>
 </html>

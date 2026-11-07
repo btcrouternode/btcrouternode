@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
-# Shared Knots/Core selection helpers (B15). Sourced by host scripts.
+# Node software selection helpers (B15) — Bitcoin Core only since build 120.
+# Sourced by host scripts.
 # State: M.2 primary + /etc/knots backup so preference survives mount races / power loss.
 
 STATE_M2=/mnt/bitcoin/.node-impl
@@ -157,11 +158,11 @@ m2_mounted() {
 	grep -q " $MNT " /proc/mounts 2>/dev/null
 }
 
+# Bitcoin Core is the only node software since build 120 (Knots dropped).
+# A stored "knots" (older firmware) therefore reads as core: the next
+# reconcile rewrites it, and Core starts on the same datadir (no re-download).
 normalize_impl() {
-	case "${1:-}" in
-		knots) echo knots ;;
-		*) echo core ;;
-	esac
+	echo core
 }
 
 # Prefer M.2 when mounted; else system backup; else default core.
@@ -181,10 +182,7 @@ read_impl() {
 update_banner_impl() {
 	impl=$(normalize_impl "$1")
 	[ -f /etc/banner ] || return 0
-	case "$impl" in
-		core) label="Bitcoin Core" ;;
-		*) label="Bitcoin Knots" ;;
-	esac
+	label="Bitcoin Core"
 	if grep -q '^ Active:' /etc/banner 2>/dev/null; then
 		sed -i "s|^ Active:.*| Active:   ${label} (from M.2 preference)|" /etc/banner 2>/dev/null || true
 	fi
@@ -211,6 +209,8 @@ write_impl() {
 reconcile_impl() {
 	m2_mounted || return 1
 	if [ -f "$STATE_M2" ]; then
+		[ "$(cat "$STATE_M2" 2>/dev/null)" = knots ] &&
+			logger -t node-impl "Bitcoin Knots is no longer shipped — this router now runs Bitcoin Core (same chain data)" 2>/dev/null
 		write_impl "$(cat "$STATE_M2")"
 	elif [ -f "$STATE_SYS" ]; then
 		write_impl "$(cat "$STATE_SYS")"

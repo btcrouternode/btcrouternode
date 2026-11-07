@@ -1,24 +1,22 @@
 #!/bin/bash
-# Build Debian bookworm arm64 rootfs with Bitcoin Knots for LXC.
+# Build the Debian bookworm arm64 rootfs with Bitcoin Core for LXC.
+# (Bitcoin Knots was dropped in build 120: Core is the only node software.)
 # Uses Docker --platform linux/arm64.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # C4 supply-chain: version tags and pinned SHA256s come from build/version.env
-# (single source of truth; version.env's KNOTS_TAG was previously unused here,
-# a drift hazard). Normalize make 'VAR := value' lines for shell consumption.
+# (single source of truth). Normalize make 'VAR := value' lines for shell consumption.
 VERSION_ENV="${ROOT}/build/version.env"
 _version_env() {  # <VAR> — print value of 'VAR := value' from version.env
   sed -nE "s/^$1[[:space:]]*:=[[:space:]]*([^[:space:]#]+).*/\1/p" "$VERSION_ENV" | tail -n1
 }
-KNOTS_TAG="$(_version_env KNOTS_TAG)"
-KNOTS_SHA256="$(_version_env KNOTS_SHA256)"
 CORE_VER="$(_version_env CORE_VER)"
 CORE_TAG="$(_version_env CORE_TAG)"
 CORE_SHA256="$(_version_env CORE_SHA256)"
 DEBIAN_IMAGE="$(_version_env DEBIAN_IMAGE)"
-for v in KNOTS_TAG KNOTS_SHA256 CORE_VER CORE_TAG CORE_SHA256 DEBIAN_IMAGE; do
+for v in CORE_VER CORE_TAG CORE_SHA256 DEBIAN_IMAGE; do
   if [ -z "${!v}" ]; then
     echo "==> ERROR: $v missing in $VERSION_ENV" >&2
     exit 1
@@ -37,11 +35,6 @@ verify_sha256() {  # <file> <pinned-sha256> <label>
     exit 1
   fi
 }
-
-# B4a — non-RDTS / non-BIP-110 parallel build (not *20260508)
-KNOTS_DIRNAME="bitcoin-${KNOTS_TAG#v}"
-KNOTS_TGZ="${KNOTS_DIRNAME}-aarch64-linux-gnu.tar.gz"
-KNOTS_URL="https://github.com/bitcoinknots/bitcoin/releases/download/${KNOTS_TAG}/${KNOTS_TGZ}"
 
 OUT_DIR="${ROOT}/lxc/out"
 DL_DIR="${ROOT}/build/dl"
@@ -72,16 +65,8 @@ done
 EOF
 chmod 755 "${HELPERS}/knots-service" "${HELPERS}/knots-init"
 
-echo "==> Downloading Knots ${KNOTS_TAG}"
-if [ ! -f "${DL_DIR}/${KNOTS_TGZ}" ]; then
-  curl -fL -o "${DL_DIR}/${KNOTS_TGZ}.partial" "$KNOTS_URL"
-  mv "${DL_DIR}/${KNOTS_TGZ}.partial" "${DL_DIR}/${KNOTS_TGZ}"
-fi
-verify_sha256 "${DL_DIR}/${KNOTS_TGZ}" "$KNOTS_SHA256" "Knots ${KNOTS_TAG}"
-
 rm -rf "$STAGING"
 mkdir -p "$STAGING"
-tar -xzf "${DL_DIR}/${KNOTS_TGZ}" -C "$STAGING"
 
 echo "==> Pulling ${DEBIAN_IMAGE} (arm64)"
 # X5: pinned by digest (build/version.env) — a tag can be re-pointed upstream.
@@ -148,17 +133,15 @@ rm -rf "${STAGING}/core"
 mkdir -p "${STAGING}/core"
 tar -xzf "${DL_DIR}/${CORE_TGZ}" -C "${STAGING}/core"
 
-echo "==> Installing Knots + Core binaries (shared datadir; Core is the default, Knots selectable)"
+echo "==> Installing Bitcoin Core binaries"
 docker exec "$CONTAINER" mkdir -p \
-  /usr/local/lib/bitcoin/knots/bin /usr/local/lib/bitcoin/core/bin /usr/local/bin /etc/bitcoin
-docker cp "${STAGING}/${KNOTS_DIRNAME}/bin/bitcoind" "$CONTAINER:/usr/local/lib/bitcoin/knots/bin/bitcoind"
-docker cp "${STAGING}/${KNOTS_DIRNAME}/bin/bitcoin-cli" "$CONTAINER:/usr/local/lib/bitcoin/knots/bin/bitcoin-cli"
+  /usr/local/lib/bitcoin/core/bin /usr/local/bin /etc/bitcoin
 docker cp "${STAGING}/core/${CORE_DIRNAME}/bin/bitcoind" "$CONTAINER:/usr/local/lib/bitcoin/core/bin/bitcoind"
 docker cp "${STAGING}/core/${CORE_DIRNAME}/bin/bitcoin-cli" "$CONTAINER:/usr/local/lib/bitcoin/core/bin/bitcoin-cli"
 docker exec "$CONTAINER" bash -c '
-  ln -sfn /usr/local/lib/bitcoin/knots/bin/bitcoind /usr/local/bin/bitcoind
-  ln -sfn /usr/local/lib/bitcoin/knots/bin/bitcoin-cli /usr/local/bin/bitcoin-cli
-  chmod 755 /usr/local/lib/bitcoin/knots/bin/* /usr/local/lib/bitcoin/core/bin/*
+  ln -sfn /usr/local/lib/bitcoin/core/bin/bitcoind /usr/local/bin/bitcoind
+  ln -sfn /usr/local/lib/bitcoin/core/bin/bitcoin-cli /usr/local/bin/bitcoin-cli
+  chmod 755 /usr/local/lib/bitcoin/core/bin/*
 '
 docker cp "${ROOT}/lxc/bitcoin.conf" "$CONTAINER:/etc/bitcoin/bitcoin.conf"
 docker cp "${HELPERS}/knots-service" "$CONTAINER:/usr/local/bin/knots-service"

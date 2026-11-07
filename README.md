@@ -7,8 +7,8 @@ verifies it itself. (Inside the firmware the device still calls itself
 *RNode*: Wi-Fi `rnode`, address `http://rnode-xxxx.local`.)
 
 - Router: Wi-Fi, firewall, internet (OpenWrt 24.10)
-- Node: Bitcoin Core (default) or Bitcoin Knots — your choice, each installed
-  only after checking its own project's release signatures
+- Node: Bitcoin Core, installed only after checking Bitcoin Core's own release
+  signatures (Bitcoin Knots was offered until build 119)
 - Setup from a laptop or computer, with a secure (HTTPS) connection to the router
 - Updates only from releases signed by the maintainers
 

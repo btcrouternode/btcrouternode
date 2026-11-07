@@ -104,61 +104,14 @@
     }
   }
 
-  /* Installed Knots version, for the known-issue check (node-advisory.js). */
-  var knotsVersion = "";
-
-  function renderAdvisory(act) {
-    var box = $("knotsAdvisory");
-    var adv = window.KnotsNodeAdvisory;
-    var a = adv && adv.forImpl("knots", knotsVersion);
-    if (!box) return;
-    if (!a || act !== "knots") {
-      box.hidden = true;
-      return;
-    }
-    box.textContent = "";
-    var strong = document.createElement("strong");
-    strong.textContent = a.title + ". ";
-    box.appendChild(strong);
-    box.appendChild(document.createTextNode(a.lines[0] + " " + a.lines[2] + " "));
-    var link = document.createElement("a");
-    link.href = a.url;
-    link.target = "_blank";
-    link.rel = "noopener";
-    link.textContent = "Advisory";
-    box.appendChild(link);
-    box.hidden = false;
-  }
-
+  /* Bitcoin Core is the only node software since build 120 (Knots dropped). */
   function render(d) {
-    var act = d.active || "core";
-    knotsVersion = (d.knots && d.knots.installed && d.knots.version) || "";
-    $("active").textContent = act === "core" ? "Bitcoin Core" : "Bitcoin Knots";
-    if ($("factoryDefault")) {
-      $("factoryDefault").textContent =
-        (d.default || "core") === "core" ? "Bitcoin Core" : "Bitcoin Knots";
-    }
-    $("knotsVer").textContent = d.knots && d.knots.installed ? d.knots.version : "not installed";
+    $("active").textContent = "Bitcoin Core";
     $("coreVer").textContent = d.core && d.core.installed ? d.core.version : "not installed";
-    $("running").textContent = d.running
-      ? "Yes (" + (act === "core" ? "Core" : "Knots") + ")"
-      : "No";
-    if (act === "core") $("rCore").checked = true;
-    else $("rKnots").checked = true;
-    $("rCore").disabled = !(d.core && d.core.installed);
+    $("running").textContent = d.running ? "Yes" : "No";
     renderWalletWarn(d);
-    renderPrev("knots", d);
     renderPrev("core", d);
-    if (!walletPresent) {
-      banner(
-        "Active implementation follows the M.2 preference (" +
-          (act === "core" ? "Core" : "Knots") +
-          "). The factory default is Bitcoin Core.",
-        false
-      );
-    }
-    renderAdvisory(act);
-    if (window.KnotsBrand) window.KnotsBrand.apply(act);
+    if (window.KnotsBrand) window.KnotsBrand.apply("core");
   }
 
   function refreshApplianceBuild() {
@@ -225,81 +178,6 @@
 
   function confirmPopup(title, lines) {
     return window.confirm([title, ""].concat(lines).join("\n"));
-  }
-
-  $("btnApply").onclick = function () {
-    var impl = $("rCore").checked ? "core" : "knots";
-    var confirmTok = ($("confirm").value || "").trim();
-    var auth = authPair("authUser", "authPass");
-    if (!auth) return;
-    if (confirmTok !== "SWITCH") {
-      banner("Type SWITCH to confirm.", true);
-      return;
-    }
-    if (needWalletAck()) {
-      banner("Acknowledge the wallet backup warning before switching.", true);
-      return;
-    }
-    /* Known issue in the installed Knots (node-advisory.js): warn first. */
-    var adv = window.KnotsNodeAdvisory;
-    if (impl === "knots" && adv && adv.forImpl("knots", knotsVersion)) {
-      $("btnApply").disabled = true;
-      adv.confirmChoice("knots", knotsVersion).then(function (goAhead) {
-        $("btnApply").disabled = false;
-        if (!goAhead) {
-          $("rCore").checked = true;
-          banner("Switch cancelled — Bitcoin Core (recommended) is selected.", false);
-          return;
-        }
-        applySwitch(impl, confirmTok, auth);
-      });
-      return;
-    }
-    applySwitch(impl, confirmTok, auth);
-  };
-
-  function applySwitch(impl, confirmTok, auth) {
-    if (
-      !confirmPopup("Switch node software to " + impl + "?", [
-        "The blockchain on the M.2 is kept (not wiped).",
-        "Wallet files are intended to be the same keys under Knots or Core."
-      ])
-    ) {
-      banner("Switch cancelled.", false);
-      return;
-    }
-    $("btnApply").disabled = true;
-    banner(
-      "Node switch in progress — wait until this finishes. " +
-        "Node Status will show the same message (not an RPC error).",
-      false
-    );
-    var body =
-      "impl=" +
-      encodeURIComponent(impl) +
-      "&confirm=" +
-      encodeURIComponent(confirmTok) +
-      walletAckQuery() +
-      authQuery(auth);
-    apiPost("set", body)
-      .then(function (d) {
-        if (!d.ok) {
-          $("btnApply").disabled = false;
-          banner(d.message || d.error || "Switch failed", true);
-          return;
-        }
-        $("confirm").value = "";
-        $("authPass").value = "";
-        if ($("walletAck")) $("walletAck").checked = false;
-        banner(d.message || "Switch started…", false);
-        return pollOp("set", function () {
-          $("btnApply").disabled = false;
-        });
-      })
-      .catch(function (e) {
-        $("btnApply").disabled = false;
-        banner(String(e), true);
-      });
   }
 
   $("btnInstall").onclick = function () {
@@ -434,9 +312,6 @@
       });
   }
 
-  $("btnRollbackKnots").onclick = function () {
-    doRollback("knots");
-  };
   $("btnRollbackCore").onclick = function () {
     doRollback("core");
   };

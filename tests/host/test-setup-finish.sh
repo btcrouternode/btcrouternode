@@ -90,9 +90,13 @@ pend wifi_key knotsnode21
 lib 'setup_finish_validate || { echo "$SETUP_ERR_CODE"; exit 1; }' >"$W/o" && fail "factory Wi-Fi key must fail validation"
 grep -q factory_forbidden "$W/o" || fail "factory key → factory_forbidden ($(cat "$W/o"))"
 seed
+pend node_impl electrs
+lib 'setup_finish_validate || { echo "$SETUP_ERR_CODE"; exit 1; }' >"$W/o" && fail "an unknown node must fail validation"
+grep -q node_missing "$W/o" || fail "unknown node → node_missing"
+# Knots dropped in build 120: "knots" from an old cached Setup page means Core
+seed
 pend node_impl knots
-lib 'setup_finish_validate || { echo "$SETUP_ERR_CODE"; exit 1; }' >"$W/o" && fail "uninstalled node must fail validation"
-grep -q node_missing "$W/o" || fail "missing node → node_missing"
+lib 'setup_node_can_set knots' || fail "a stale knots choice must be accepted as Core"
 pass "C2 invalid staged value (LAN / factory key / missing node) refused before any change"
 
 # mask-only change on the same IP is reported for the cutover (C3/K2)

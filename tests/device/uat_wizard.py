@@ -253,8 +253,10 @@ class IueWizard:
         self.click("#btnGuided")
         self.wait_vis("#stepNode")
         self.shot("guided-node")
+        # Core only since build 120: the (hidden) Core radio is pre-checked;
+        # older images showed a visible choice.
         core = self.page.locator('input[name="impl"][value="core"]')
-        if core.count():
+        if core.count() and core.first.is_visible():
             core.first.check()
         self.click("#btnNode")
         self.wait_vis("#stepWan", timeout=20_000)

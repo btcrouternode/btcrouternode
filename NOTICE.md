@@ -29,8 +29,7 @@ projects' software, each under its own licence:
 | Component | Licence | Source |
 |-----------|---------|--------|
 | OpenWrt 24.10 (Linux kernel, BusyBox, packages in `build/packages.txt`) | GPL-2.0 and others (per package) | https://github.com/openwrt/openwrt (tag `v24.10.8`) and the OpenWrt package feeds; licences per package in the build |
-| Bitcoin Core 29.4 | MIT | https://github.com/bitcoin/bitcoin |
-| Bitcoin Knots 29.3 (`v29.3.knots20260507`) | MIT | https://github.com/bitcoinknots/bitcoin |
+| Bitcoin Core 32.1 | MIT | https://github.com/bitcoin/bitcoin |
 | LXC | LGPL-2.1+ / GPL-2.0 | https://github.com/lxc/lxc |
 | Debian packages inside the node container | per package (`/usr/share/doc/*/copyright` in the container) | https://www.debian.org/ |
 | LuCI | Apache-2.0 | https://github.com/openwrt/luci |

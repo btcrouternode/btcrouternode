@@ -107,46 +107,6 @@
     }
   }
 
-  /* Running a Knots version with a known issue (node-advisory.js): say so
-     once per visit, and offer the switch to the fixed Bitcoin Core. */
-  var advisoryChecked = false;
-  function maybeKnotsAdvisory() {
-    var adv = window.KnotsNodeAdvisory;
-    if (advisoryChecked || !adv) return;
-    advisoryChecked = true;
-    try {
-      if (sessionStorage.getItem("knots_advisory_seen") === "1") return;
-    } catch (e) {
-      /* storage blocked: show it each load */
-    }
-    fetch("/api/node?action=status", { cache: "no-store" })
-      .then(function (r) {
-        return r.json();
-      })
-      .then(function (d) {
-        var ver = d && d.knots && d.knots.installed ? d.knots.version : "";
-        var a = adv.forImpl("knots", ver);
-        if (!a || (d && d.active !== "knots")) return;
-        try {
-          sessionStorage.setItem("knots_advisory_seen", "1");
-        } catch (e) {
-          /* ignore */
-        }
-        return adv
-          .show(a, {
-            coreLabel: "Switch to Bitcoin Core…",
-            keepLabel: "Keep Knots for now",
-            escape: "keep"
-          })
-          .then(function (v) {
-            if (v === "core") window.location.href = "/node.html";
-          });
-      })
-      .catch(function () {
-        /* status only — never block the page */
-      });
-  }
-
   function render(data) {
     var k = data.knots || {};
     var s = data.storage || {};
@@ -173,15 +133,14 @@
     }
     $("hostname").textContent = data.hostname || "";
 
-    var impl = data.node_impl || "core";
+    var impl = "core"; /* Bitcoin Core only since build 120 */
     var badgeImpl = $("badgeImpl");
-    badgeImpl.textContent = impl === "core" ? "Bitcoin Core" : "Bitcoin Knots";
+    badgeImpl.textContent = "Bitcoin Core";
     badgeImpl.className = "badge on";
     if (window.KnotsBrand) {
       window.KnotsBrand.apply(impl);
       window.KnotsBrand.applyBuild(data.product_version, data.build_number);
     }
-    if (impl === "knots") maybeKnotsAdvisory();
 
     var err = $("errorLine");
     var state = $("stateLine");

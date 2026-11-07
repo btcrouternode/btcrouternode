@@ -8,17 +8,23 @@ partner) into a community project.
 
 **Node software — freedom of choice, Core by default** (owner, 2026-10-28).
 RNode exists to enable bitcoin and the owner's freedom to choose: the person
-running the router chooses which node implementation to follow (today: Bitcoin
-Core or Bitcoin Knots, both following bitcoin), and RNode's job is to install
-each one **authentically** (checked with that project's own release signatures)
-and to say **plainly** what each choice means. **Bitcoin Core is the default**,
-and the default sets RNode's release rhythm and version number.
+running the router chooses which node implementation to follow, and RNode's job
+is to install each one **authentically** (checked with that project's own
+release signatures) and to say **plainly** what each choice means. **Bitcoin
+Core is the default**, and the default sets RNode's release rhythm and version
+number.
+
+**Bitcoin Knots dropped in build 120** (owner, 2026-11-07). Knots was offered
+up to build 119 (24.10.8.29.5.119); from build 120 Bitcoin Core is the only
+implementation shipped. A router that ran Knots switches to Core on upgrade,
+keeping its chain data. Other implementations may be offered again later, on
+the same terms (each checked with its own project's signatures).
 
 ---
 
 ## 1. How the upstream projects do it
 
-### Bitcoin Core (and Bitcoin Knots)
+### Bitcoin Core
 
 | Area | Bitcoin Core |
 |------|--------------|
@@ -29,10 +35,8 @@ and the default sets RNode's release rhythm and version number.
 | Builds | **Reproducible builds** (Guix): anyone who builds a tag gets byte-identical files |
 | Trust | No single release key. Independent builders publish the hashes of their own builds, signed with their own PGP keys, in a separate repository (**guix.sigs**, one folder per version and signer, builder keys in `builder-keys/`). `SHA256SUMS.asc` carries many signatures; since v22.0 the user decides which signers to trust ([guix.sigs](https://github-redirect.dependabot.com/bitcoin-core/guix.sigs), [verify-binaries](https://github.com/bitcoin/bitcoin/blob/master/contrib/verify-binaries/README.md)) |
 
-**Bitcoin Knots** is a derivative of Bitcoin Core (also MIT) maintained by Luke
-Dashjr — offered in RNode as a choice (see the top). *To check* before the
-signature check script relies on it: who signs Knots releases and where its
-checksum and key files live (not confirmed when this document was written).
+**Bitcoin Knots**, a derivative of Bitcoin Core (also MIT), was offered as a
+choice up to build 119 (see the top).
 
 ### OpenWrt
 
@@ -50,14 +54,14 @@ checksum and key files live (not confirmed when this document was written).
 
 | Area | RNode | Taken from |
 |------|-------|------------|
-| **Licence** | **GPL-2.0-only** for RNode's own code (`LICENSE`, `NOTICE.md`); OpenWrt, Bitcoin Core, Bitcoin Knots, LXC, Debian packages keep their own licences | OpenWrt |
+| **Licence** | **GPL-2.0-only** for RNode's own code (`LICENSE`, `NOTICE.md`); OpenWrt, Bitcoin Core, LXC, Debian packages keep their own licences | OpenWrt |
 | **Repository** | **One public repository.** People develop in **forks** and send **pull requests** (no separate "community repository" — forks are that) | both |
 | **Contributions** | Every commit **Signed-off-by** (DCO, `git commit -s`); one logical change per commit; public review on the pull request (ACK / NACK) | OpenWrt + Core |
 | **Who merges** | The **maintainers** (now: the owner and his partner). `main` is protected; every merge commit and release tag is **signed with the maintainer's PGP key**; `MAINTAINERS` lists the keys; maintainers merge with `contrib/merge-pr.sh`, and `contrib/verify-commits` (run by GitHub after every push) confirms every commit on `main` and every release tag is signed by one of them | Core |
 | **Pushing** | Over **SSH** (`git@github.com:…`), never HTTPS — the SSH key is the maintainer's PGP **authentication subkey** | — |
-| **Node software** | The owner of each router **chooses** the implementation (Core, Knots, others later); **Bitcoin Core is the default**. Each offered implementation is pinned and checked with **its own** project's signatures; Setup / Settings explain what each choice means. RNode's release rhythm and version follow the **default** (Core) | Core + RNode's principle of choice |
+| **Node software** | **Bitcoin Core** (since build 120 the only implementation shipped; Knots was offered up to build 119). The principle stays the owner's choice: other implementations may be offered later; Each offered implementation is pinned and checked with **its own** project's signatures; Setup / Settings explain what each choice means. RNode's release rhythm and version follow the **default** (Core) | Core + RNode's principle of choice |
 | **Branches & versions** | `main` for development; a **release branch per OpenWrt stable series** (e.g. `rnode-24.10`); release candidates (`…-rc1`); **maintenance releases** when OpenWrt ships a service release, **Core** a point release, or RNode needs a fix. Version = **`{OpenWrt}.{Core}.{build}`** (e.g. `24.10.8.29.4.119`) — changing from today's `{OpenWrt}.{Knots}.{build}`; the build number keeps counting up | OpenWrt + Core |
-| **Upstream inputs** | Every upstream file is **pinned by SHA256** (already: Image Builder, Core, Knots, Debian image) **and** checked with the upstream project's **own signatures** when the version changes — OpenWrt's signed checksums and Core's multi-signer `SHA256SUMS.asc` (and each other offered implementation's own release signatures, e.g. Knots) — by a script whose output is kept with the release | both |
+| **Upstream inputs** | Every upstream file is **pinned by SHA256** (already: Image Builder, Core, Debian image) **and** checked with the upstream project's **own signatures** when the version changes — OpenWrt's signed checksums and Core's multi-signer `SHA256SUMS.asc` (and each other offered implementation's own release signatures) — by a script whose output is kept with the release | both |
 | **Reproducible builds** | Goal: anyone who builds a release tag gets the **same SHA256** (fixed inputs, fixed time stamps, no unpinned downloads during the build) | Core |
 | **Attestations** | A second public repository, **[`btcrouternode.sigs`](https://github.com/btcrouternode/btcrouternode.sigs)**: per release, each builder's folder (`<version>/<builder>/`) holds `SHA256SUMS` and their PGP signature `SHA256SUMS.asc` | Core (guix.sigs) |
 | **Firmware signature (on the router)** | **usign** (OpenWrt's tool), appended to the image; the router accepts only images signed by a **maintainer's firmware key**. Each maintainer has **their own** usign key, and **signs its public half with their PGP key** (PGP identity → firmware key → release) | OpenWrt (usign) + Core (one key per person) |

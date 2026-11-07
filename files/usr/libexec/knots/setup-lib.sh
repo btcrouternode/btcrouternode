@@ -436,7 +436,8 @@ setup_lan_stage() {
 
 setup_node_can_set() {
 	impl=$1
-	case "$impl" in knots|core) ;; *) return 1 ;; esac
+	# Core only since build 120; a "knots" from an old cached page means Core
+	case "$impl" in core) ;; knots) impl=core ;; *) return 1 ;; esac
 	[ "$(setup_current_impl)" = "$impl" ] && return 0
 	grep -q ' /mnt/bitcoin ' /proc/mounts 2>/dev/null || return 2
 	[ -x "/mnt/bitcoin/node-bin/$impl/bin/bitcoind" ] && return 0
@@ -514,7 +515,7 @@ setup_finish_validate() {
 		setup_node_can_set "$(setup_pending_get node_impl)" || _nrc=$?
 		if [ "$_nrc" -ne 0 ]; then
 			SETUP_ERR_CODE=node_missing
-			SETUP_ERR_MSG="That node is not installed on this appliance (or the M.2 drive is not ready). Keep Bitcoin Core for setup, or install the other node later under Node software."
+			SETUP_ERR_MSG="Bitcoin Core is not ready on this appliance (or the M.2 drive is not ready). Wait a moment and try again."
 			return 1
 		fi
 	fi
@@ -691,7 +692,8 @@ setup_cutover_node() {
 
 setup_node_set() {
 	impl=$1
-	case "$impl" in knots|core) ;; *) return 1 ;; esac
+	# Core only since build 120; a "knots" from an old cached page means Core
+	case "$impl" in core) ;; knots) impl=core ;; *) return 1 ;; esac
 	# U17 first-run has no wallet UX (Phase 2); leftover lab wallet dirs on the
 	# shared datadir must not block Knots/Core choice. Pass WALLET_ACK here only.
 	# Post-Setup Node software still requires explicit UI ack (U7a).

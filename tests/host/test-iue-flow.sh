@@ -225,10 +225,10 @@ grep -q 'getRegistrations' "$ROOT/files/www/knots/shell.js" \
 grep -qi 'Skip' "$HTML" || fail "WAN/TLS Skip allowed in UI"
 pass "WAN DHCP/PPPoE + Skip (R10a)"
 
-# Node: Core default (recommended) + Knots choice
-grep -qi 'Knots' "$HTML" || fail "Knots choice in HTML"
-grep -q 'value="core" checked' "$HTML" || fail "Core must be the default (checked) node choice"
-grep -q '(recommended)' "$HTML" || fail "recommended marker on default node"
+# Node: Bitcoin Core only (Knots dropped in build 120) — no choice offered
+! grep -q 'value="knots"' "$HTML" || fail "Setup must not offer Knots any more"
+grep -q 'value="core" checked' "$HTML" || fail "Setup must submit Core"
+grep -q 'This router runs <strong>Bitcoin Core</strong>' "$HTML" || fail "Setup must say the router runs Bitcoin Core"
 pass "Bitcoin node Core default + Knots choice"
 
 # TLS step: OS panels + primary CTA; OS tabs always visible (outside collapsed help)

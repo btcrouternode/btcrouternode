@@ -79,8 +79,9 @@ done
 blk "$N" install | grep -q 'out=$(/usr/libexec/knots/node-impl.sh install-from' && fail "install must not run inside the CGI"
 awk '/switch to \$target failed/,/exit 1/' "$K/node-impl.sh" | grep -q 'write_impl "\$cur"' || fail "failed switch must revert the impl"
 grep -q 'last_op' "$ROOT/files/www/knots/settings.js" || fail "settings.js must show last_op"
+# (no switch on the Node page since build 120 — Core is the only node software)
 grep -q 'pollOp("install"' "$ROOT/files/www/knots/node.js" && grep -q 'pollOp("rollback"' "$ROOT/files/www/knots/node.js" \
-	&& grep -q 'pollOp("set"' "$ROOT/files/www/knots/node.js" || fail "node.js must wait for last_op"
+	|| fail "node.js must wait for last_op"
 grep -q 'watchReindexStart' "$ROOT/files/www/knots/app.js" || fail "app.js must surface the reindex verdict"
 pass "workers verify outcomes; install/rollback/reindex detached; UI shows last_op"
 

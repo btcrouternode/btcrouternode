@@ -65,8 +65,9 @@ case "$ACTION" in
 		;;
 	set)
 		case "$IMPL" in
-			knots|core) ;;
-			*) fail_json "bad_impl" "impl must be knots or core" ;;
+			core) ;;
+			knots) fail_json "knots_dropped" "Bitcoin Knots is no longer part of btcrouternode (since build 120); Bitcoin Core is the node software" ;;
+			*) fail_json "bad_impl" "impl must be core" ;;
 		esac
 		if [ "$CONFIRM" != "SWITCH" ]; then
 			fail_json "confirm_required" "Type SWITCH to change node implementation"
@@ -83,8 +84,9 @@ case "$ACTION" in
 	install)
 		# B19/B21 — LAN upload: POST body = .tar.gz; metadata in query string
 		case "$IMPL" in
-			knots|core) ;;
-			*) fail_json "bad_impl" "impl must be knots or core" ;;
+			core) ;;
+			knots) fail_json "knots_dropped" "Bitcoin Knots is no longer part of btcrouternode (since build 120); Bitcoin Core is the node software" ;;
+			*) fail_json "bad_impl" "impl must be core" ;;
 		esac
 		if [ "$CONFIRM" != "INSTALL" ]; then
 			fail_json "confirm_required" "Type INSTALL to replace node binaries"
@@ -136,8 +138,9 @@ node_op_result install ok 'Installed ${IMPL} from upload. Chain data kept.'" ins
 		;;
 	rollback)
 		case "$IMPL" in
-			knots|core) ;;
-			*) fail_json "bad_impl" "impl must be knots or core" ;;
+			core) ;;
+			knots) fail_json "knots_dropped" "Bitcoin Knots is no longer part of btcrouternode (since build 120); Bitcoin Core is the node software" ;;
+			*) fail_json "bad_impl" "impl must be core" ;;
 		esac
 		if [ "$CONFIRM" != "ROLLBACK" ]; then
 			fail_json "confirm_required" "Type ROLLBACK to restore previous binaries"

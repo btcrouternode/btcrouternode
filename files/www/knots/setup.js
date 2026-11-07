@@ -835,21 +835,6 @@
     for (var i = 0; i < radios.length; i++) {
       if (radios[i].checked) impl = radios[i].value;
     }
-    /* Known issue in the shipped Knots (node-advisory.js): warn before it is
-       chosen; "Use Bitcoin Core" switches the choice and carries on. */
-    var adv = window.KnotsNodeAdvisory;
-    if (impl === "knots" && adv) {
-      $("btnNode").disabled = true;
-      adv.confirmChoice("knots").then(function (goAhead) {
-        $("btnNode").disabled = false;
-        if (!goAhead) {
-          var core = document.querySelector('input[name="impl"][value="core"]');
-          if (core) core.checked = true;
-        }
-        submitNode(goAhead ? "knots" : "core");
-      });
-      return;
-    }
     submitNode(impl);
   };
 

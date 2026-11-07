@@ -1,6 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
-# B15–B21 — Knots/Core switch + install/replace/rollback on M.2 node-bin.
+# B15–B21 — node software (Bitcoin Core) install/replace/rollback on M.2 node-bin.
+# Knots was dropped in build 120: it can no longer be chosen, installed or rolled back.
 set -e
 
 . /usr/libexec/knots/node-impl-lib.sh
@@ -11,15 +12,16 @@ set -e
 ROOTFS=${NODE_IMPL_ROOTFS:-/srv/lxc/knots/rootfs}
 BINROOT=${NODE_IMPL_BINROOT:-/mnt/bitcoin/node-bin}
 
-# Factory pins shipped in this image (build/version.env KNOTS_TAG / CORE_TAG;
-# tests/host/test-node-factory-refresh.sh checks they match).
-FACTORY_KNOTS=v29.3.knots20260507
-FACTORY_CORE=v29.5
+# Factory pin shipped in this image (build/version.env CORE_TAG;
+# tests/host/test-node-factory-refresh.sh checks they match). Bitcoin Core is
+# the only node software since build 120 — Knots is no longer shipped.
+FACTORY_CORE=v32.1
 # Earlier factory pins that this image replaces on the M.2, so a fix in a new
-# release reaches routers already in use (29.4 → 29.5: CVE-2026-117349/117346).
-# A version not listed here was installed by the owner (B19) — never touched.
-OLD_FACTORY_KNOTS=""
-OLD_FACTORY_CORE="v29.4"
+# release reaches routers already in use (29.4 → 29.5: CVE-2026-117349/117346;
+# 29.x → 32.1: CVE-2025-46598). A version not listed here was installed by the
+# owner (B19) — never touched.
+OLD_FACTORY_CORE="v29.4 v29.5"
+KNOTS_GONE="Bitcoin Knots is no longer part of btcrouternode (since build 120) — Bitcoin Core is the node software"
 
 log() { logger -t node-impl "$*"; echo "node-impl: $*" >&2; }
 
@@ -127,29 +129,13 @@ ensure_layout() {
 		log "M.2 not mounted — skip bin layout / state writes"
 		return 1
 	fi
-	mkdir -p "$BINROOT/knots/bin" "$BINROOT/core/bin"
-	# Adopt legacy LXC /usr/local/bin install into M.2 knots/ (frees overlay)
-	if [ ! -x "$BINROOT/knots/bin/bitcoind" ] && [ -x "$ROOTFS/usr/local/bin/bitcoind" ]; then
-		if [ ! -L "$ROOTFS/usr/local/bin/bitcoind" ]; then
-			for b in bitcoind bitcoin-cli bitcoin-tx bitcoin-util bitcoin-wallet; do
-				[ -f "$ROOTFS/usr/local/bin/$b" ] || continue
-				cp -a "$ROOTFS/usr/local/bin/$b" "$BINROOT/knots/bin/"
-				rm -f "$ROOTFS/usr/local/bin/$b"
-			done
-			echo "$FACTORY_KNOTS" >"$BINROOT/knots/VERSION"
-			log "moved Knots binaries to $BINROOT/knots/bin (overlay relief)"
-		fi
-	fi
-	# Shipped defaults: Knots B4a + Core B16 must appear installed under node-bin
-	seed_factory_impl knots "$FACTORY_KNOTS"
+	mkdir -p "$BINROOT/core/bin"
+	# Shipped default: Core (B16) must appear installed under node-bin. An old
+	# node-bin/knots/ from earlier firmware is left on the drive, unused.
 	seed_factory_impl core "$FACTORY_CORE"
-	[ -f "$BINROOT/knots/VERSION" ] || {
-		[ -x "$BINROOT/knots/bin/bitcoind" ] && echo "$FACTORY_KNOTS" >"$BINROOT/knots/VERSION"
-	}
 	[ -f "$BINROOT/core/VERSION" ] || {
 		[ -x "$BINROOT/core/bin/bitcoind" ] && echo "$FACTORY_CORE" >"$BINROOT/core/VERSION"
 	}
-	refresh_factory_impl knots "$FACTORY_KNOTS" "$OLD_FACTORY_KNOTS"
 	refresh_factory_impl core "$FACTORY_CORE" "$OLD_FACTORY_CORE"
 	reconcile_impl
 }
@@ -308,11 +294,15 @@ do_install_from() {
 	wallet_ack=$5
 
 	case "$dif_impl" in
-		knots|core) ;;
+		core) ;;
+		knots) echo "error: $KNOTS_GONE" >&2; return 2 ;;
 		*)
-			echo "Usage: $0 install-from knots|core TGZ [sha256] INSTALL [WALLET_ACK]" >&2
+			echo "Usage: $0 install-from core TGZ [sha256] INSTALL [WALLET_ACK]" >&2
 			return 2
 			;;
+	esac
+	case "$(basename "$tgz")" in
+		*knots*|*Knots*) echo "error: $KNOTS_GONE — install a Bitcoin Core release" >&2; return 2 ;;
 	esac
 	[ -f "$tgz" ] || {
 		echo "error: tarball not found: $tgz" >&2
@@ -400,9 +390,10 @@ do_rollback() {
 	wallet_ack=$3
 
 	case "$drb_impl" in
-		knots|core) ;;
+		core) ;;
+		knots) echo "error: $KNOTS_GONE" >&2; return 2 ;;
 		*)
-			echo "Usage: $0 rollback knots|core ROLLBACK [WALLET_ACK]" >&2
+			echo "Usage: $0 rollback core ROLLBACK [WALLET_ACK]" >&2
 			return 2
 			;;
 	esac
@@ -469,17 +460,15 @@ case "${1:-status}" in
 		c_ok=false
 		k_prev=false
 		c_prev=false
-		m2_mounted && bins_ok knots && k_ok=true
+		# Knots is not offered any more: always reported as not installed
 		m2_mounted && bins_ok core && c_ok=true
-		m2_mounted && prev_ok knots && k_prev=true
 		m2_mounted && prev_ok core && c_prev=true
 		# Escape -version-derived strings before JSON embedding — a quote in a
 		# version label must not break the status payload
-		kv=$(json_escape "$(version_of knots)")
+		kv=missing
 		cv=$(json_escape "$(version_of core)")
 		kpv=missing
 		cpv=missing
-		[ "$k_prev" = "true" ] && kpv=$(json_escape "$(version_of knots "$BINROOT/knots.prev")")
 		[ "$c_prev" = "true" ] && cpv=$(json_escape "$(version_of core "$BINROOT/core.prev")")
 		running=false
 		lxc-attach -n knots -- pidof bitcoind >/dev/null 2>&1 && running=true
@@ -498,9 +487,10 @@ case "${1:-status}" in
 		confirm=${3:-}
 		wallet_ack=${4:-}
 		case "$target" in
-			knots|core) ;;
+			core) ;;
+			knots) echo "error: $KNOTS_GONE" >&2; exit 2 ;;
 			*)
-				echo "Usage: $0 set knots|core SWITCH [WALLET_ACK]" >&2
+				echo "Usage: $0 set core SWITCH [WALLET_ACK]" >&2
 				exit 2
 				;;
 		esac
@@ -578,7 +568,6 @@ case "${1:-status}" in
 		;;
 	refresh-factory)
 		# Tests / support: just the factory refresh (no mount check, no reconcile)
-		refresh_factory_impl knots "$FACTORY_KNOTS" "$OLD_FACTORY_KNOTS"
 		refresh_factory_impl core "$FACTORY_CORE" "$OLD_FACTORY_CORE"
 		echo "ok"
 		;;
@@ -590,7 +579,7 @@ case "${1:-status}" in
 		echo "ok $(active_impl)"
 		;;
 	*)
-		echo "Usage: $0 status|ensure-default|reconcile|set knots|core SWITCH [WALLET_ACK]|install-from knots|core TGZ [sha256] INSTALL [WALLET_ACK]|rollback knots|core ROLLBACK [WALLET_ACK]|install-core-from TGZ" >&2
+		echo "Usage: $0 status|ensure-default|reconcile|set core SWITCH [WALLET_ACK]|install-from core TGZ [sha256] INSTALL [WALLET_ACK]|rollback core ROLLBACK [WALLET_ACK]|install-core-from TGZ" >&2
 		exit 2
 		;;
 esac

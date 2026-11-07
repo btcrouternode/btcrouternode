@@ -1,11 +1,12 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
-# T-NODE-REFRESH: a release that ships a newer factory node pin (Core 29.4 →
-# 29.5, CVE-2026-117349) must reach routers already in use: at boot, before the
-# node starts, an OLDER factory pin on the M.2 is replaced and kept as .prev for
-# Rollback. Never while bitcoind runs, never an owner's own install or
-# rollback, never Knots (pinned to the main-chain release). Runs the real
-# node-impl.sh against a fake image rootfs and M.2.
+# T-NODE-REFRESH: a release that ships a newer factory Core pin (29.4/29.5 →
+# 32.1) must reach routers already in use: at boot, before the node starts, an
+# OLDER factory pin on the M.2 is replaced and kept as .prev for Rollback. Never
+# while bitcoind runs, never an owner's own install or rollback. Knots is gone
+# since build 120: a stored "knots" means Core, and Knots cannot be chosen,
+# installed or rolled back. Runs the real node-impl.sh against a fake image
+# rootfs and M.2.
 set -eu
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
@@ -16,11 +17,13 @@ NI="$ROOT/files/usr/libexec/knots/node-impl.sh"
 VE="$ROOT/build/version.env"
 
 # Pins in the script = pins the image is built with.
-kt=$(sed -n 's/^KNOTS_TAG := //p' "$VE"); ct=$(sed -n 's/^CORE_TAG := //p' "$VE")
-grep -qx "FACTORY_KNOTS=$kt" "$NI" || fail "node-impl.sh FACTORY_KNOTS is not $kt (build/version.env)"
+ct=$(sed -n 's/^CORE_TAG := //p' "$VE")
 grep -qx "FACTORY_CORE=$ct" "$NI" || fail "node-impl.sh FACTORY_CORE is not $ct (build/version.env)"
 ! grep -q "^OLD_FACTORY_CORE=.*$ct" "$NI" || fail "the current Core pin must not be in OLD_FACTORY_CORE"
-pass "factory pins match build/version.env ($kt, $ct)"
+grep -q '^OLD_FACTORY_CORE=.*v29.4' "$NI" && grep -q '^OLD_FACTORY_CORE=.*v29.5' "$NI" ||
+	fail "routers on 29.4 (Release 1) and 29.5 (.119) must both get the new Core"
+! grep -q 'KNOTS' "$VE" || fail "build/version.env must not pin Knots any more"
+pass "factory pin matches build/version.env ($ct); 29.4 and 29.5 are replaced"
 
 # The real script, with its libraries taken from the repository.
 sed "s#/usr/libexec/knots/#$ROOT/files/usr/libexec/knots/#g" "$NI" >"$W/node-impl.sh"
@@ -57,14 +60,18 @@ run() { sh "$W/node-impl.sh" refresh-factory >/dev/null 2>&1 || fail "refresh-fa
 ver() { cat "$W/m2/node-bin/$1/VERSION"; }
 
 image new
-m2 core v29.4; m2 knots "$kt"
+m2 core v29.5; m2 knots v29.3.knots20260507
 run
-[ "$(ver core)" = "$ct" ] || fail "Release 1 router: Core still $(ver core), want $ct"
+[ "$(ver core)" = "$ct" ] || fail ".119 router: Core still $(ver core), want $ct"
 grep -q "core new" "$W/m2/node-bin/core/bin/bitcoind" || fail "Core binary not replaced"
-[ "$(cat "$W/m2/node-bin/core.prev/VERSION")" = v29.4 ] || fail "29.4 not kept for Rollback"
+[ "$(cat "$W/m2/node-bin/core.prev/VERSION")" = v29.5 ] || fail "29.5 not kept for Rollback"
 [ "$(cat "$W/m2/node-bin/core/ORIGIN")" = factory ] || fail "ORIGIN not factory"
-[ "$(ver knots)" = "$kt" ] && grep -q "knots $kt" "$W/m2/node-bin/knots/bin/bitcoind" || fail "Knots must stay as it is"
-pass "Release 1 router: Core v29.4 → $ct, 29.4 kept for Rollback, Knots untouched"
+[ -x "$W/m2/node-bin/knots/bin/bitcoind" ] || fail "an old node-bin/knots must be left on the drive (owner data)"
+pass ".119 router: Core v29.5 → $ct, 29.5 kept for Rollback, old Knots files left alone"
+
+m2 core v29.4; run
+[ "$(ver core)" = "$ct" ] && [ "$(cat "$W/m2/node-bin/core.prev/VERSION")" = v29.4 ] || fail "Release 1 router (29.4) not updated"
+pass "Release 1 router: Core v29.4 → $ct"
 
 run
 [ "$(cat "$W/m2/node-bin/core.prev/VERSION")" = v29.4 ] || fail "second boot changed .prev"
@@ -81,6 +88,21 @@ pass "an owner's rollback stays"
 m2 core v30.0; run
 [ "$(ver core)" = v30.0 ] || fail "an owner's own Core install was replaced"
 pass "an owner's own install stays"
+
+# Knots is gone: a stored "knots" reads as core; choosing it is refused.
+LIB="$W/node-impl-lib.sh"; sed "s#/usr/libexec/knots/#$ROOT/files/usr/libexec/knots/#g" "$ROOT/files/usr/libexec/knots/node-impl-lib.sh" >"$LIB"
+[ "$(sh -c ". '$LIB'; normalize_impl knots")" = core ] || fail "a stored knots must read as core"
+for args in "set knots SWITCH" "install-from knots /dev/null x INSTALL" "rollback knots ROLLBACK"; do
+	out=$(sh "$W/node-impl.sh" $args 2>&1) && fail "node-impl.sh $args must be refused"
+	echo "$out" | grep -q "no longer part of btcrouternode" || fail "$args: $out"
+done
+: >"$W/bitcoin-29.3.knots20260507-aarch64-linux-gnu.tar.gz"
+out=$(sh "$W/node-impl.sh" install-from core "$W/bitcoin-29.3.knots20260507-aarch64-linux-gnu.tar.gz" "" INSTALL 2>&1) && fail "a Knots tarball must not install as core"
+echo "$out" | grep -q "install a Bitcoin Core release" || fail "knots tarball as core: $out"
+grep -q 'active_impl() {' "$ROOT/lxc/knots-service" && grep -A2 'active_impl() {' "$ROOT/lxc/knots-service" | grep -q 'echo core' ||
+	fail "the container must always start Core"
+! grep -q 'KNOTS' "$ROOT/lxc/rootfs-build.sh" || fail "the image must not download Knots"
+pass "Knots gone: stored knots → core; switch/install/rollback refused; Knots tarball refused; image and container are Core-only"
 
 # knots-start: the refresh runs before the container starts.
 KS="$ROOT/files/usr/libexec/knots/knots-start.sh"

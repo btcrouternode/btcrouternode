@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
-"""Laptop web UAT for the BPI-R4 Knots appliance (Phase 2 Node SKU).
+"""Laptop web UAT for the BPI-R4 btcrouternode appliance (Bitcoin Core node).
 
 IUE (Quick/Guided) is clicked in Chromium the same way a person uses Setup
 (Welcome → Security → choice → fields → Finish). Other phases still use the
@@ -813,6 +813,8 @@ def phase_settings() -> None:
 
 
 def phase_node() -> None:
+    """Bitcoin Core is the only node software since build 120: status reports
+    Core active and Knots not installed, and a switch to Knots is refused."""
     try:
         _c, data = R.get_json("/api/node?action=status")
     except ConnectionError:
@@ -820,46 +822,13 @@ def phase_node() -> None:
     ok("UAT-ND-1", "Node software status", bool(data.get("ok")), str(data)[:160])
     if not data.get("ok"):
         return
-    active = data.get("active")
-    knots_ok = bool((data.get("knots") or {}).get("installed"))
-    core_ok = bool((data.get("core") or {}).get("installed"))
-    log(f"  .. active={active} knots={knots_ok} core={core_ok}")
-    other = "knots" if active == "core" else "core"
-    other_ok = knots_ok if other == "knots" else core_ok
-    if not other_ok:
-        ok("UAT-ND-2", f"switch skipped ({other} not installed)", True)
-        return
-    extra = {"impl": other, "confirm": "SWITCH"}
-    if data.get("wallet_present") in (True, "true", 1, "1"):
-        extra["wallet_ack"] = "WALLET_ACK"
-    sw = R.node("set", extra)
-
-    def _active_is(want: str) -> bool:
-        try:
-            _c, st = R.get_json("/api/node?action=status", https=True)
-        except ConnectionError:
-            try:
-                _c, st = R.get_json("/api/node?action=status", https=False)
-            except ConnectionError:
-                return False
-        if str(st.get("active") or "") != want:
-            return False
-        # L1: "active" flips before the switch worker has started the new
-        # node; wait for the node-op lock to clear (.79: ND-3 node_busy).
-        return not R.settings_status().get("node_busy", False)
-
-    switched = bool(sw.get("ok")) and wait_until(
-        f"active={other} + idle", lambda: _active_is(other), timeout=300, interval=3
-    )
-    ok("UAT-ND-2", f"switch to {other}", switched, fail_detail(sw))
-    back = {"impl": str(active), "confirm": "SWITCH"}
-    if extra.get("wallet_ack"):
-        back["wallet_ack"] = "WALLET_ACK"
-    sw2 = R.node("set", back)
-    switched_back = bool(sw2.get("ok")) and wait_until(
-        f"active={active} + idle", lambda: _active_is(str(active)), timeout=300, interval=3
-    )
-    ok("UAT-ND-3", f"switch back to {active}", switched_back, fail_detail(sw2))
+    ok("UAT-ND-2", "Bitcoin Core active and installed",
+       data.get("active") == "core" and bool((data.get("core") or {}).get("installed")), str(data)[:200])
+    ok("UAT-ND-3", "Knots not offered (reported not installed)",
+       not (data.get("knots") or {}).get("installed"), str(data.get("knots")))
+    sw = R.node("set", {"impl": "knots", "confirm": "SWITCH", "wallet_ack": "WALLET_ACK"})
+    ok("UAT-ND-4", "switch to Knots refused (knots_dropped)",
+       not sw.get("ok") and "knots" in str(sw.get("error") or sw.get("message") or "").lower(), fail_detail(sw))
 
 
 def phase_luci() -> None:
@@ -1439,8 +1408,8 @@ HANDLERS = {
 # node binary install / rollback (official tarballs) and a LAN IP change in
 # Setup with the old-IP hold window.
 TARBALL_DIR = Path(env("KNOTS_UAT_TARBALLS", str(Path.home() / "Documents" / "knots-uat" / "tarballs")))
-CORE_TGZ = "bitcoin-29.4-aarch64-linux-gnu.tar.gz"
-KNOTS_TGZ = "bitcoin-29.3.knots20260507-aarch64-linux-gnu.tar.gz"
+CORE_TGZ = "bitcoin-32.1-aarch64-linux-gnu.tar.gz"
+KNOTS_TGZ = "bitcoin-29.3.knots20260507-aarch64-linux-gnu.tar.gz"  # must be refused
 MOVE_IP = env("KNOTS_UAT_MOVE_IP", "192.168.77.1")
 
 
@@ -1486,41 +1455,32 @@ def _upload_tarball(impl: str, path: Path) -> dict[str, Any]:
 
 def phase_node_bins() -> None:
     core_t, knots_t = TARBALL_DIR / CORE_TGZ, TARBALL_DIR / KNOTS_TGZ
-    if not core_t.is_file() or not knots_t.is_file():
-        ok("UAT-NB-0", f"tarballs present in {TARBALL_DIR}", False, f"need {CORE_TGZ} + {KNOTS_TGZ}")
+    if not core_t.is_file():
+        ok("UAT-NB-0", f"tarball present in {TARBALL_DIR}", False, f"need {CORE_TGZ}")
         return
     st = _node_status()
-    active = str(st.get("active") or "core")
-    log(f"  .. node-bins start: active={active} core={st.get('core')} knots={st.get('knots')}")
+    log(f"  .. node-bins start: active={st.get('active')} core={st.get('core')}")
 
-    # 1. Install the ACTIVE implementation (restart path) — CGI answers at once (L3).
-    out = _upload_tarball(active, core_t if active == "core" else knots_t)
-    ok("UAT-NB-1", f"install {active} accepted (detached, no proxy timeout)", bool(out.get("ok")) and bool(out.get("accepted")), fail_detail(out))
+    # 1. Install Core (the active node: restart path) — CGI answers at once (L3).
+    out = _upload_tarball("core", core_t)
+    ok("UAT-NB-1", "install core accepted (detached, no proxy timeout)", bool(out.get("ok")) and bool(out.get("accepted")), fail_detail(out))
     if out.get("ok"):
-        _node_verdict("UAT-NB-2", "install", f"install {active} worker verdict ok")
+        _node_verdict("UAT-NB-2", "install", "install core worker verdict ok")
         st = _node_status()
-        ok("UAT-NB-3", f"{active}.prev kept for rollback", bool((st.get(active) or {}).get("prev_available")), str(st.get(active)))
+        ok("UAT-NB-3", "core.prev kept for rollback", bool((st.get("core") or {}).get("prev_available")), str(st.get("core")))
         ok("UAT-NB-4", "node running again after install restart", wait_node_running(True, timeout=600), "")
 
-    # 2. Roll back the active implementation.
-    rb = R.node("rollback", {"impl": active, "confirm": "ROLLBACK", "wallet_ack": "WALLET_ACK"})
-    ok("UAT-NB-5", f"rollback {active} accepted", bool(rb.get("ok")) and bool(rb.get("accepted")), fail_detail(rb))
+    # 2. Roll back Core.
+    rb = R.node("rollback", {"impl": "core", "confirm": "ROLLBACK", "wallet_ack": "WALLET_ACK"})
+    ok("UAT-NB-5", "rollback core accepted", bool(rb.get("ok")) and bool(rb.get("accepted")), fail_detail(rb))
     if rb.get("ok"):
-        _node_verdict("UAT-NB-6", "rollback", f"rollback {active} worker verdict ok")
+        _node_verdict("UAT-NB-6", "rollback", "rollback core worker verdict ok")
         ok("UAT-NB-7", "node running after rollback", wait_node_running(True, timeout=600), "")
 
-    # 3. Install the INACTIVE implementation (no restart); version label from the file name.
-    other = "knots" if active == "core" else "core"
-    tgz = knots_t if other == "knots" else core_t
-    out = _upload_tarball(other, tgz)
-    ok("UAT-NB-8", f"install {other} accepted", bool(out.get("ok")) and bool(out.get("accepted")), fail_detail(out))
-    if out.get("ok"):
-        _node_verdict("UAT-NB-9", "install", f"install {other} worker verdict ok")
-        st = _node_status()
-        ver = str((st.get(other) or {}).get("version") or "")
-        want = "29.3.knots20260507" if other == "knots" else "29.4"
-        ok("UAT-NB-10", f"{other} version recorded ({want})", want in ver and not ver.startswith("3."), ver)
-        ok("UAT-NB-11", f"active impl unchanged ({active})", str(st.get("active")) == active, str(st.get("active")))
+    # 3. Knots is gone since build 120: installing it is refused.
+    if knots_t.is_file():
+        out = _upload_tarball("knots", knots_t)
+        ok("UAT-NB-8", "install knots refused", not out.get("ok"), fail_detail(out))
 
 
 LAPTOP_MOVE_ADDR = env("KNOTS_UAT_LAPTOP_MOVE_ADDR", "192.168.77.50/24")

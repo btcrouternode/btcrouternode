@@ -351,25 +351,11 @@
     <!-- 4 Node (guided) -->
     <section class="panel setup-step" data-step="4" id="stepNode" hidden>
       <h2 data-i18n="setup.node.title">Bitcoin node</h2>
-      <p class="muted" data-i18n="setup.node.body">
-        Choose which Bitcoin software this box runs. Both are full nodes and share the same chain data on the disk.
-        If you are unsure, leave <strong>Bitcoin Core</strong> selected (recommended).
+      <p class="muted" data-i18n="setup.node.core_only">
+        This router runs <strong>Bitcoin Core</strong>, a full Bitcoin node that checks every block and
+        transaction for itself. It keeps the whole blockchain on the router's own drive.
       </p>
-      <ol class="tls-steps">
-        <li>Tap one of the two choices below (a filled circle means selected).</li>
-        <li>Tap <strong>Continue</strong>.</li>
-      </ol>
-      <p class="setup-choice">
-        <label class="choice">
-          <input type="radio" name="impl" value="core" checked />
-          <span data-i18n="setup.node.core"><strong>Bitcoin Core</strong> (recommended)</span>
-        </label>
-        <label class="choice">
-          <input type="radio" name="impl" value="knots" />
-          <span data-i18n="setup.node.knots"><strong>Bitcoin Knots</strong></span>
-          <span class="muted small">— has a known security issue in this version, see the warning when you choose it</span>
-        </label>
-      </p>
+      <input type="radio" name="impl" value="core" checked hidden />
       <p><button type="button" class="btn btn-accent" id="btnNode" data-i18n="setup.node.cta">Continue</button></p>
     </section>
 
@@ -563,7 +549,6 @@
   <script src="i18n.js?v=107a"></script>
   <script src="shell.js?v=96a"></script>
   <script src="tls-os.js?v=113a"></script>
-  <script src="node-advisory.js?v=119a"></script>
-  <script src="setup.js?v=119a"></script>
+  <script src="setup.js?v=120a"></script>
 </body>
 </html>
