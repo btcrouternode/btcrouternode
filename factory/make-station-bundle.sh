@@ -8,10 +8,8 @@
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 OUT="${1:-$ROOT/bin/factory-station}"
-OV=$(sed -n 's/^OPENWRT_VER := //p' "$ROOT/build/version.env")
-KV=$(sed -n 's/^CORE_VER := //p' "$ROOT/build/version.env")
-BN=$(sed -n 's/^BUILD_NUM := //p' "$ROOT/build/version.env")
-VER="$OV.$KV.$BN"; PRE="bpi-r4-phase2-$VER"
+PV=$(sh "$ROOT/build/product-version.sh")
+VER="$PV"; PRE="bpi-r4-phase2-$VER"
 SRC="${TARGETS_DIR:-$ROOT/bin/targets/mediatek/filogic}"
 B="$OUT/rnode-factory"
 [ -f "$SRC/$PRE-sdcard.img.gz" ] || { echo "no SD image for $VER in $SRC (make image)" >&2; exit 1; }
@@ -21,7 +19,7 @@ mkdir -p "$B/factory" "$B/build" "$B/docs" "$B/images/$VER"
 for f in "$ROOT"/factory/*.sh "$ROOT"/factory/*.py "$ROOT"/factory/*.md "$ROOT"/factory/emmc-gpt-primary-64.bin; do
 	[ -f "$f" ] && cp -p "$f" "$B/factory/"
 done
-cp -p "$ROOT/build/version.env" "$B/build/"
+cp -p "$ROOT/build/version.env" "$ROOT/build/product-version.sh" "$B/build/"
 cp -p "$ROOT/docs/FACTORY_EMMC_INSTALL.md" "$B/docs/" 2>/dev/null || true
 for f in "$PRE-sdcard.img.gz" "$PRE-squashfs-sysupgrade.itb" "$PRE-emmc-gpt-primary-64.bin" "$PRE.sha256"; do
 	[ -f "$SRC/$f" ] && cp -p "$SRC/$f" "$B/images/$VER/"

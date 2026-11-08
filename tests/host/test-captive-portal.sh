@@ -3,8 +3,9 @@
 # T-CAPTIVE — first-use captive portal (captive-portal.sh, owner request
 # 2026-10-24): DNS entries for the connectivity-check names point at the LAN IP
 # while Setup is incomplete, follow a LAN IP change, are removed when Setup
-# completes, never touch other dnsmasq address entries; setup_mark_complete and
-# the LAN hotplug call it; nginx part is in test-nginx-origin.
+# completes, never touch other dnsmasq address entries; setup_mark_complete,
+# setup_clear_markers (factory reset), first boot (uci-defaults, entries only)
+# and the LAN hotplug call it; nginx part is in test-nginx-origin.
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 CP="$ROOT/files/usr/libexec/knots/captive-portal.sh"
@@ -53,12 +54,33 @@ touch "$W/complete"; run sync
 [ "$(run status)" = off ] || fail "status off"
 pass "on until Setup completes (public test address + redirect), follows the LAN IP, idempotent, all removed after Setup, other entries untouched"
 
+# First boot (uci-defaults): entries only, so dnsmasq starts with them — no
+# dnsmasq restart and no nft before the network is up (UAT-CAP-1, 25.12).
+rm -f "$W/complete" "$W/nft.rules" "$W/commits"; echo "/blocked.example/0.0.0.0" >"$W/list"
+cat >"$W/bin/dnsrestart" <<S
+#!/bin/sh
+echo restarted >>$W/restarts
+S
+chmod +x "$W/bin/dnsrestart"
+sed 's#/etc/init.d/dnsmasq restart#dnsrestart#' "$CP" >"$W/cp.sh"
+PATH="$W/bin:$PATH" KNOTS_SETUP_COMPLETE="$W/complete" KNOTS_CAPTIVE_BOOT=1 sh "$W/cp.sh" sync
+grep -qx "/connectivitycheck.gstatic.com/192.0.2.1" "$W/list" || fail "boot mode must write the entries: $(cat "$W/list")"
+[ "$(grep -c commit "$W/commits")" = 1 ] || fail "boot mode must commit dhcp once"
+[ ! -e "$W/nft.rules" ] && [ ! -e "$W/restarts" ] || fail "boot mode must not touch nft or restart dnsmasq"
+PATH="$W/bin:$PATH" KNOTS_SETUP_COMPLETE="$W/complete" sh "$W/cp.sh" sync
+[ -e "$W/nft.rules" ] && [ ! -e "$W/restarts" ] || fail "ifup after boot mode: nft on, no needless dnsmasq restart"
+pass "first boot: entries written before dnsmasq starts (no restart, no nft); ifup adds the redirect"
+
 grep -q 'captive-portal.sh off' "$ROOT/files/usr/libexec/knots/setup-lib.sh" || fail "setup_mark_complete must switch it off"
+awk '/^setup_clear_markers\(\)/,/^}/' "$ROOT/files/usr/libexec/knots/setup-lib.sh" | grep -q 'captive-portal.sh sync' \
+	|| fail "setup_clear_markers (factory reset) must switch it back on at once"
+grep -q 'KNOTS_CAPTIVE_BOOT=1 /usr/libexec/knots/captive-portal.sh sync' "$ROOT/files/etc/uci-defaults/96-knots-captive" \
+	|| fail "first boot must write the entries (uci-defaults 96-knots-captive)"
 grep -q 'captive-portal.sh sync' "$ROOT/files/etc/hotplug.d/iface/95-knots-avahi" || fail "LAN ifup must sync it"
 for h in $(sed -n '/^HOSTS="/,/"$/p' "$CP" | tr -d '"' | sed 's/^HOSTS=//'); do
 	grep -qE "^\s*$h 1;" "$ROOT/files/etc/nginx/conf.d/knots-ui.conf" || fail "nginx \$knots_captive lacks $h"
 done
 grep -vE '^\s*#' "$CP" | grep -q 'dnsmasq reload' && fail "captive-portal.sh must restart dnsmasq (reload = SIGHUP does not apply address= entries; .104)"
 grep -vE '^\s*#' "$CP" | grep -q '/etc/init.d/dnsmasq restart' || fail "captive-portal.sh must restart dnsmasq after changing the entries"
-pass "wired: Setup completion switches it off, LAN ifup syncs it, nginx knows every check host"
+pass "wired: Setup completion switches it off, factory reset + first boot + LAN ifup switch it on, nginx knows every check host"
 echo "ALL PASS: test-captive-portal (T-CAPTIVE)"

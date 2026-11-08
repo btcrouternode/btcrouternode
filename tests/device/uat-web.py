@@ -1321,6 +1321,9 @@ def phase_iue_guided() -> None:
     if su.get("complete") is True:
         ok("UAT-IG-0", "Setup already complete — skip Guided", True)
         return
+    # After the reset-settings upgrade = a fresh first boot (uci-defaults
+    # 96-knots-captive), not a factory reset: the portal must be on here too.
+    _captive("3", expect_on=True)
 
     def run(wiz: Any) -> None:
         wiz.open_setup()

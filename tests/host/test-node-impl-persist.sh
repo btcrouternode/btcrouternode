@@ -23,7 +23,7 @@ grep -q 'node-impl.sh ensure-default' "$ROOT/files/usr/libexec/knots/knots-start
 grep -q 'reconcile_impl' "$NI"
 grep -q 'BUILD_NUM' "$ROOT/build/version.env"
 grep -q 'BUILD_NUM' "$ROOT/Makefile"
-grep -q '{openwrt}.{core}.{build}' "$ROOT/REQUIREMENTS.md"
+grep -q '{OpenWrt major}.{router fix #}.{Bitcoin Core major}.{node fix #}' "$ROOT/REQUIREMENTS.md"
 grep -q 'build_number' "$ROOT/files/usr/libexec/knots/status-api.sh"
 # X1: build_number is generated (gitignored) — check the build writes it.
 grep -q 'etc/knots/build_number' "$ROOT/Makefile"

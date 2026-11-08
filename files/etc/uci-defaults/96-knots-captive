@@ -1,0 +1,8 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# First-use captive portal on a fresh install / reset-settings upgrade: write
+# the dnsmasq entries before dnsmasq first starts (captive-portal.sh). After 90
+# (LAN IP). Setup already complete (keep-settings upgrade) = nothing to do.
+[ -x /usr/libexec/knots/captive-portal.sh ] || exit 0
+KNOTS_CAPTIVE_BOOT=1 /usr/libexec/knots/captive-portal.sh sync >/dev/null 2>&1
+exit 0

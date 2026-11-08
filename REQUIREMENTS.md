@@ -110,7 +110,7 @@ Until Phase 3 is authorized, Phase 2 may keep **hooks/docs** only (**W5**) — n
 | ID | Phase | Description |
 |----|-------|-------------|
 | **R1** | P1 | Appliance is based on the **latest stable OpenWrt** release supported for BPI-R4 at build time. |
-| **R1a** | P1 | **Product/build version** = OpenWrt + Bitcoin Core (the default node) + **appliance build number**, dotted form **`{openwrt}.{core}.{build}`**, e.g. **`24.10.8.29.5.119`** (from build 119; Release 1 = `24.10.8.29.3.118` still used the Knots version). Increment **`build`** for each appliance image/release that changes product software (not for every local WIP). Record the concrete string in `docs/AS_BUILT.md` on each release/build. |
+| **R1a** | P1 | **Product version** (owner, 2026-11-08) = **`{OpenWrt major}.{router fix #}.{Bitcoin Core major}.{node fix #}`**, e.g. **`25.0.32.0`** = first release on OpenWrt 25 with Core 32; our own fix-release counters (router-side / node-side) start at 0 and reset with a new major. The **build number** is separate (e.g. build 121) and always increases. Earlier releases used `{openwrt}.{core}.{build}` (last: `24.10.8.29.5.119`). Increment **`build`** for each appliance image/release that changes product software (not for every local WIP). Record the concrete string in `docs/AS_BUILT.md` on each release/build. |
 | **R2** | P1 | **LuCI** is installed and reachable on the **internal LAN** for normal router administration. |
 | **R3** | P1 | Device functions as a home router: WAN uplink, LAN switching/routing, NAT as appropriate. |
 | **R4** | P1 | Plug-and-play first boot: sensible defaults so a non-technical user can connect WAN + LAN and get online without CLI. **Retail** units also run the first-run Setup wizard (**U17**). |
@@ -357,7 +357,7 @@ Internet
 | DMZ outbound | **Allow any** first; refine later (N7) |
 | Bring-up | **Production: eMMC boot**; SD = factory/dev install only (R5, R5a) |
 | SPI-NAND | Bootloader / recovery bridge only — not full appliance root (R5) |
-| Product version | **`{openwrt}.{core}.{build}`** e.g. `24.10.8.29.5.119` (R1a) |
+| Product version | **`{OpenWrt major}.{router fix}.{Core major}.{node fix}`** e.g. `25.0.32.0`, plus a separate build number (R1a) |
 | Port map | **Stock OpenWrt BPI-R4** defaults (R12) |
 | Admin password | Lab **`knotsnode21`**; retail Setup **must** change (**R13**, **U17**) |
 | TLS v1 | Local CA + **Setup HTTPS trust step** + install scripts (**N13**, **U17**); `/tls.html` help |
@@ -381,7 +381,7 @@ Internet
 
 Full register: `docs/SCOPE_GAPS_REPORT.md`. Remaining highlights:
 
-1. Concrete **`{openwrt}.{core}.{build}`** string per release build (R1a).
+1. Concrete **`{OpenWrt major}.{router fix}.{Core major}.{node fix}`** version and build number per release (R1a).
 2. Factory DOC3a eMMC install SOP verification on hardware (R5a).
 3. Deferred: refined DMZ egress (**G5**); Wi‑Fi multi-radio polish in TECH_SPEC §7.6.
 4. **First-run Setup implement detail (TECH_SPEC §7.6):** timeouts, password min length, setup-complete marker, lab skip policy — do not invent in UI without TECH_SPEC.

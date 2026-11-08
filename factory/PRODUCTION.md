@@ -10,6 +10,14 @@ sticker step (PNG on screen, blue LED, WPS press). Needs a board whose eMMC
 already has a working U-Boot with the 7391 partition table (checked first);
 brand-new blank boards still need the SD → NAND route below.
 
+The station's U-Boot step (`boot_tftp_write_fip`) also erases the saved U-Boot
+env, so every unit through the station gets a **new MAC** (new `rnode-XXXX`
+name) and a new label secret — a new sticker. That is intended for production;
+never put a customer's or labelled unit through the station to update it.
+To update a labelled lab unit's boot loader by TFTP and keep its MAC and
+sticker, write the preloader and FIP without the env erase (the 24.10 and
+25.12 U-Boot default envs are identical, so the saved env stays valid).
+
 The sections below are the manual / command-line route.
 
 # Producing one RNode unit — command line

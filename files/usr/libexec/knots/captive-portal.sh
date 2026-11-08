@@ -10,6 +10,10 @@
 #
 #   captive-portal.sh sync   on while Setup is incomplete, off once complete
 #   captive-portal.sh on|off|status
+# KNOTS_CAPTIVE_BOOT=1 (first-boot uci-defaults): only the dnsmasq entries, so
+# dnsmasq STARTS with them — no restart, no nft (the LAN ifup hotplug adds it).
+# 25.12 UAT (build 121): relying on the ifup hotplug alone left a window after
+# boot where dnsmasq answered the check names upstream (UAT-CAP-1).
 set -u
 COMPLETE="${KNOTS_SETUP_COMPLETE:-/etc/knots/setup-complete}"
 # The check names resolve to a PUBLIC test address (RFC 5737), not the LAN IP:
@@ -70,12 +74,13 @@ apply() { # on|off
 		for h in $HOSTS; do
 			case "$have" in *" /$h/$PORTAL_IP "*) ;; *) uci add_list dhcp.@dnsmasq[0].address="/$h/$PORTAL_IP"; changed=1 ;; esac
 		done
-		nft_on "$ip"            # always (re)made: follows a LAN IP change, lost on reboot
+		[ -n "${KNOTS_CAPTIVE_BOOT:-}" ] || nft_on "$ip"   # always (re)made: follows a LAN IP change, lost on reboot
 	else
-		nft_off
+		[ -n "${KNOTS_CAPTIVE_BOOT:-}" ] || nft_off
 	fi
 	if [ "$changed" = 1 ]; then
 		uci commit dhcp
+		[ -n "${KNOTS_CAPTIVE_BOOT:-}" ] && return 0
 		# RESTART, not reload: dnsmasq's reload is a SIGHUP, which re-reads hosts
 		# files but not address= entries — on .104 the portal was "on" in uci
 		# while dnsmasq kept answering REFUSED (no internet) for the check names.

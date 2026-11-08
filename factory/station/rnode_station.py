@@ -81,7 +81,7 @@ def save_state(st):
 def read_version():
     env = open(os.path.join(BUNDLE, "build", "version.env")).read()
     get = lambda k: re.search(rf"^{k} := (\S+)", env, re.M).group(1)
-    return f"{get('OPENWRT_VER')}.{get('CORE_VER')}.{get('BUILD_NUM')}"
+    return get('PRODUCT_VER')    # {OpenWrt major}.{fix}.{Core major}.{fix} (build/product-version.sh)
 
 
 def image_set(ver):

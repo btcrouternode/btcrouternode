@@ -55,6 +55,10 @@ setup_clear_markers() {
 	# phantom reboot request from a change the reset already reverted).
 	rm -f /tmp/knots/setup-lan-newip /etc/knots/setup-lan-newip /tmp/knots/setup-lan-oldip 2>/dev/null || true
 	rm -rf "$SETUP_PENDING_DIR" 2>/dev/null || true
+	# First-use captive portal back on NOW (saved before the reset's reboot, so
+	# dnsmasq starts with it) — not only on the next LAN ifup (UAT-CAP-1, 25.12).
+	[ -x /usr/libexec/knots/captive-portal.sh ] && /usr/libexec/knots/captive-portal.sh sync >/dev/null 2>&1
+	return 0
 }
 
 # S7 (review 2026-10-10) — byte-level input checks. Values come from
