@@ -5,7 +5,7 @@
 #
 #   build/stage-offline.sh keys|sign|identity [STATION]     (make offline-stage MODE=… STATION=…)
 #     keys     — the tools + the script, to make new release keys A and B
-#     sign     — also the current RELEASE=1 build in unsigned/, to sign with key A
+#     sign     — also the current RELEASE=1 build in unsigned/, to sign with the firmware key
 #     identity — a maintainer's PGP identity + firmware key: needs
 #                MAINTAINER_NAME, MAINTAINER_EMAIL, FIRMWARE_LABEL in the environment
 # Writes bin/offline-stage/rnode-sign/ and, with STATION=user@host, copies it to

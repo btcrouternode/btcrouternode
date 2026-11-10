@@ -134,13 +134,18 @@ cp "$W/k/$fp" "$W/kd/release/BADNAME"
 KNOTS_KEYS_DIR="$W/kd" sh "$ROOT/build/stage-release-keys.sh" "$W/fs" release >/dev/null 2>&1 && fail "bad key file name accepted"
 rm -f "$W/kd/release/BADNAME"
 # the real repository keys: A + B released, TEST separate, all valid public keys
-[ "$(ls "$ROOT/keys/release" | grep -cE '^[0-9a-f]{16}$')" = 2 ] || fail "keys/release must hold exactly keys A and B"
+# keys/release = exactly the maintainers' firmware keys (each PGP-signed in
+# keys/maintainers); a retired key (keys/retired) is never trusted again.
+want=$(ls "$ROOT"/keys/maintainers/*-firmware-key-*.asc | sed 's/.*-firmware-key-\([0-9a-f]\{16\}\)\.asc$/\1/' | sort)
+[ "$(ls "$ROOT/keys/release" | sort)" = "$want" ] || fail "keys/release must be exactly the maintainers' firmware keys ($want): $(ls "$ROOT/keys/release")"
+for k in "$ROOT"/keys/retired/*; do [ -f "$k" ] || continue; [ ! -e "$ROOT/keys/release/$(basename "$k")" ] || fail "retired key $(basename "$k") still trusted"; done
 for k in "$ROOT"/keys/test/*; do [ ! -e "$ROOT/keys/release/$(basename "$k")" ] || fail "test key in keys/release"; done
-for k in "$ROOT"/keys/release/* "$ROOT"/keys/test/*; do
+for k in "$ROOT"/keys/release/* "$ROOT"/keys/test/* "$ROOT"/keys/retired/*; do
+	[ -f "$k" ] || continue
 	[ "$("$H/usign" -F -p "$k")" = "$(basename "$k")" ] || fail "$k: file name is not its fingerprint"
 done
 git -C "$ROOT" ls-files files/etc/knots/release-keys | grep -qE '/[0-9a-f]{16}$' && fail "staged keys must not be tracked (generated from keys/)"
-pass "key staging: test = A/B + TEST, release = A/B only, stale keys removed; repository keys named by fingerprint"
+pass "key staging: test = release keys + TEST, release = release keys only, stale keys removed; keys/release = the maintainers' firmware keys, retired keys untrusted, all named by fingerprint"
 
 # releases kept next to the builds (Releases/<version>), never wiped by a build
 T="$W/bt"; mkdir -p "$T/out/targets/mediatek/filogic/Releases/v1" "$T/ib/mediatek/filogic"

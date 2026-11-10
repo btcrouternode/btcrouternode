@@ -33,12 +33,11 @@ If this document conflicts with `REQUIREMENTS.md`, **REQUIREMENTS wins** — ame
 | Layer | Technology | Notes |
 |-------|------------|-------|
 | Host OS | OpenWrt (latest stable BPI-R4) | LuCI, firewall, DHCP, DNAT, node UI |
-| Product version | `{openwrt}.{knots}` e.g. `24.10.xx.28.xx` | R1a |
+| Product version | `{OpenWrt major}.{router fix}.{Core major}.{node fix}` e.g. `25.0.32.0`, plus a separate build number | R1a |
 | Node runtime | **LXC** | Single container, one DMZ IP |
-| Bitcoin | Knots **`bitcoind`** | Unpruned; `disablewallet=1` until P6 |
+| Bitcoin | Bitcoin Core **`bitcoind`** | Unpruned; `disablewallet=1` until P6 |
 | Data | M.2 NVMe **1 TB**, ext4 `@/mnt/bitcoin` | Bind-mount into LXC |
-| Bitcoin pin | Knots **`v29.3.knots20260507`** (bundled; **default node is Core**, B15) | Non-RDTS (B4a); product `24.10.8.29.3` |
-| Bitcoin Core pin | **`v32.1`** (the only node software since build 120; replaces an older factory pin — 29.4/29.5 — on the M.2 at boot) | Shared datadir with Knots (B15–B17); user may install other releases (B19–B21, U11) |
+| Bitcoin Core pin | **`v32.1`** (the only node software since build 120; replaces an older factory pin — 29.4/29.5 — on the M.2 at boot) | Knots (shipped up to build 119) used the same datadir (B15–B17); user may install other Core releases (B19–B21, U11) |
 | Node UI | **nginx** on OpenWrt | HTTPS `:443` (HTTP `:80`→HTTPS) → RPC `21.21.21.21:8332` |
 | LuCI | **uhttpd** on OpenWrt | `:8080` / `:8443` (linked from dashboard) |
 | Bring-up (prod) | **eMMC boot** (R5) | SD = factory/lab install only (R5a); SD GPT production matches eMMC (**R5b**, `ROOTFS_PARTSIZE_MIB`) |
@@ -136,12 +135,13 @@ bpi-r4_v3.0/
 
 **Lock:** Stock OpenWrt BPI-R4 DSA assignment for the pinned release — **no custom remap**.
 
-**OpenWrt 24.10.8 stock BPI-R4** (`board.d/02_network`):
+**OpenWrt 25.12.6 stock BPI-R4** (`board.d/02_network`; 24.10 named the SFP
+ports `eth1` / `eth2`):
 
 | Role | Stock members |
 |------|----------------|
-| LAN (`br-lan`) | `lan1 lan2 lan3 eth1` |
-| WAN | `wan eth2` |
+| LAN (`br-lan`) | `lan1 lan2 lan3 sfp-lan` |
+| WAN | `wan sfp-wan` |
 
 Appliance overlays **only** change addresses/services on those stock roles (LAN → `.254`, DHCP pool, add DMZ veth). They do **not** reassign which jack is WAN vs LAN.
 

@@ -22,9 +22,10 @@ separately from GitHub.
 |-----|---------------------------------------------|----------------------------------|
 | Eugene | `5271 52B5 9BFA 6688 43A4  30A6 06D0 406C 5CF2 4C42` ([key](keys/maintainers/eugene.asc)) | `2e51b93dd6058ffb` ([signed by his PGP key](keys/maintainers/eugene-firmware-key-2e51b93dd6058ffb.asc)) |
 
-Release 1 (`24.10.8.29.3.118`) also trusts the standby firmware key
-`833eb2b299741478`; it is retired in the next release (one firmware key per
-maintainer, [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md)).
+The standby firmware key `833eb2b299741478`, trusted by releases up to
+`24.10.8.29.5.119`, is retired from `25.0.32.0` on (one firmware key per
+maintainer, [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md)); its public key
+is kept in `keys/retired/` for the record only.
 
 Official release images are signed offline. Routers accept updates through
 Settings only when signed by a maintainer's firmware key.

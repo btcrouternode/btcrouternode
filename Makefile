@@ -153,7 +153,7 @@ offline-tools:
 offline-stage: offline-tools
 	$(ROOT)/build/stage-offline.sh "$(MODE)" "$(STATION)"
 
-# File a release signed offline with key A/B (factory/OFFLINE-KEYGEN.md) in
+# File a release signed offline with a maintainer firmware key (keys/README.md) in
 # bin/targets/mediatek/filogic/Releases/<version>/ — kept across builds.
 store-release:
 	@test -n "$(SIGNED)" || { echo "usage: make store-release SIGNED=/path/to/signed-sysupgrade.itb" >&2; exit 1; }

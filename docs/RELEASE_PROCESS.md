@@ -100,7 +100,8 @@ Each maintainer looks after **their own** keys — there is no shared project ke
 - The keys made on 2026-10-27 (A `2e51b93dd6058ffb` = the owner's firmware key;
   B `833eb2b299741478` = his standby) move to this model: **A stays the owner's
   firmware key**, copied to a backup stick; **B is retired** in the first public
-  release, which adds the partner's own firmware key.
+  release — done in `25.0.32.0` (owner, 2026-11-10; `keys/retired/`); the
+  partner's own firmware key is added by a later signed release.
 
 ---
 

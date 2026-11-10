@@ -6,14 +6,15 @@ Core** by default — your router keeps a full copy of the Bitcoin blockchain an
 verifies it itself. (Inside the firmware the device still calls itself
 *RNode*: Wi-Fi `rnode`, address `http://rnode-xxxx.local`.)
 
-- Router: Wi-Fi, firewall, internet (OpenWrt 24.10)
+- Router: Wi-Fi, firewall, internet (OpenWrt 25.12)
 - Node: Bitcoin Core, installed only after checking Bitcoin Core's own release
   signatures (Bitcoin Knots was offered until build 119)
 - Setup from a laptop or computer, with a secure (HTTPS) connection to the router
 - Updates only from releases signed by the maintainers
 
-**Release 1:** `24.10.8.29.3.118` — see [Releases](../../releases) for the
-image, its SHA256 and signatures.
+**Current release:** `25.0.32.0` (OpenWrt 25.12, Bitcoin Core 32.1) — see
+[Releases](../../releases) for the image, its SHA256 and signatures. Version =
+`{OpenWrt major}.{router fix}.{Core major}.{node fix}`.
 
 ## Building it yourself
 

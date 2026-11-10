@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
-# File a release that was signed offline with key A (or B) next to the builds:
+# File a release that was signed offline with a maintainer firmware key next to the builds:
 #   bin/targets/mediatek/filogic/Releases/<product_version>/
 # Refuses anything not signed by a key in keys/release (the TEST key does not
 # count), a build that was not made with RELEASE=1, and overwriting a release.
@@ -26,7 +26,7 @@ W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
 cp "$SIGNED" "$W/img"
 "$H/fwtool" -q -t -s "$W/sig" "$W/img" >/dev/null 2>&1 || true
 [ -s "$W/sig" ] || fail "$SIGNED carries no signature"
-"$H/usign" -V -q -m "$W/img" -P "$KEYS" -x "$W/sig" || fail "signature is not from release key A or B"
+"$H/usign" -V -q -m "$W/img" -P "$KEYS" -x "$W/sig" || fail "signature is not from a maintainer firmware key (keys/release)"
 cmp -s "$W/img" "$BUILT" || fail "signed file is not build $VER (sign the image from this build)"
 fp=$(grep -ao 'signed by key [0-9a-f]*' "$W/sig" | head -1 | awk '{print $4}')
 

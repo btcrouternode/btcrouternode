@@ -1,8 +1,10 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 # Stage the trusted release keys into the firmware overlay (keys/README.md).
-#   test    — release A/B + the TEST key (UAT/soak builds, signed on this PC)
-#   release — release A/B only (signed offline with key A)
+#   test    — the maintainers' firmware keys (keys/release) + the TEST key
+#   release — the maintainers' firmware keys only (signed offline)
+# keys/retired/ is never staged: routers stop trusting a retired key with the
+# first release built without it.
 # Writes FILES_DIR/etc/knots/build_channel. Usage: stage-release-keys.sh FILES_DIR test|release
 set -eu
 FILES="${1:?usage: stage-release-keys.sh FILES_DIR test|release}"

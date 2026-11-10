@@ -166,7 +166,7 @@ Back on the build PC, put the signed `.itb` in the project folder (e.g.
 make store-release SIGNED=bin/offline-tools/signed/<image>.itb
 ```
 
-It checks the signature is from key A or B (not TEST), that it is this
+It checks the signature is from a firmware key in `keys/release` (not TEST), that it is this
 `RELEASE=1` build, and stores it read-only in
 `bin/targets/mediatek/filogic/Releases/<version>/` with its SHA256 list and
 the signing key (`make image` never deletes `Releases/`). The SHA256 it prints
