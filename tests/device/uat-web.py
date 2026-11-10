@@ -1097,6 +1097,26 @@ def phase_release_sig() -> None:
        bool(after.get("ok")) and str(after.get("flash_id") or "") == flash_before
        and (after.get("upgrade") or {}).get("phase") not in ("applying", "verifying"),
        f"flash_id {flash_before[:8]} → {str(after.get('flash_id') or '')[:8]}")
+    # Release build (customer path): a build signed with the TEST key — e.g.
+    # our own test build of this version — must be refused too, with its
+    # correct SHA256. KNOTS_UAT_TEST_SIGNED = path to that image.
+    other = env("KNOTS_UAT_TEST_SIGNED", "")
+    if other and st.get("build_channel") == "release":
+        data = Path(other).expanduser().read_bytes()
+        q.update(filename=Path(other).name, sha256=hashlib.sha256(data).hexdigest())
+        code, _h, raw = R.request("/api/settings", method="POST", data=data,
+                                  headers={"Content-Type": "application/octet-stream", "Authorization": auth},
+                                  query=q, timeout=900)
+        try:
+            out = json.loads(raw.decode("utf-8", "replace"))
+        except json.JSONDecodeError:
+            out = {"ok": False, "error": "not_json", "http": code}
+        time.sleep(20)
+        after2 = R.settings_status()
+        ok("UAT-SIG-4", "release build refuses a TEST-signed image (correct SHA256), not flashed",
+           out.get("ok") is False and out.get("error") in ("unsigned_image", "bad_signature")
+           and str(after2.get("flash_id") or "") == flash_before,
+           f"{out.get('error')}: {out.get('message', '')[:80]}")
 
 
 def phase_factory() -> None:

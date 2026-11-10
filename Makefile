@@ -232,6 +232,7 @@ test-host:
 	$(ROOT)/tests/host/test-factory-station.sh
 	$(ROOT)/tests/host/test-factory-label.sh
 	$(ROOT)/tests/host/test-factory-station-app.sh
+	$(ROOT)/tests/host/test-station-restart.sh
 	$(ROOT)/tests/host/test-captive-portal.sh
 	$(ROOT)/tests/host/test-first-boot.sh
 	$(ROOT)/tests/host/test-release-sig.sh
