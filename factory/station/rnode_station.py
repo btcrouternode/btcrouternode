@@ -50,6 +50,11 @@ label_batch = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(label_batch)
 
 SHUTDOWN_TIMEOUT = int(os.environ.get("RNODE_SHUTDOWN_TIMEOUT", "300"))   # poweroff: node stop + M.2 unmount (~1–2 min)
+# Power step: the station waits for the operator as long as it takes (25.0.32.0 lab,
+# 2026-11-10: a fixed 10-minute limit failed the bay while the screen still asked
+# for a power cycle). After this much silence it only adds a hint to check the cables.
+POWER_QUIET = int(os.environ.get("RNODE_POWER_QUIET", "300"))
+LINUX_SEEN = re.compile(r"Please press Enter to activate|login:|Linux version|\w@[\w.-]+:[^\n]*# $")
 STEPS = ["power", "check", "tftp", "boot", "verify", "provision", "label", "done"]
 STEP_TITLES = {
     "power": "Power on, catch U-Boot", "check": "eMMC partition table", "tftp": "TFTP write: preloader, U-Boot, production",
@@ -237,6 +242,8 @@ class Bay(threading.Thread):
         self.done = {s: False for s in STEPS}
         self.con = None
         self.retry_event = threading.Event()
+        self.stop = threading.Event()     # Stop batch (only before anything is written)
+        self.wrote = False                # set once the TFTP step starts writing the eMMC
 
     # --- reporting ---
     def say(self, msg, instruction=None):
@@ -252,6 +259,10 @@ class Bay(threading.Thread):
 
     def finish_step(self, s):
         self.done[s] = True
+
+    def check_stop(self):
+        if self.stop.is_set():
+            raise BayStopped()
 
     def snapshot(self):
         return {
@@ -269,6 +280,8 @@ class Bay(threading.Thread):
                 self.status = "running"
                 self.build()
                 return
+            except BayStopped:
+                break
             except BayFailed:
                 pass
             except Exception as e:
@@ -282,6 +295,11 @@ class Bay(threading.Thread):
                 self.st.event(traceback.format_exc()[-800:])
             self.retry_event.clear()
             self.retry_event.wait()
+            if self.stop.is_set():
+                break
+        self.status = "stopped"
+        if self.con:
+            self.con.close()
 
     def build(self):
         if not self.con:
@@ -303,14 +321,26 @@ class Bay(threading.Thread):
         self.say(f"built and provisioned: {self.unit}", "Waiting for the sticker step.")
 
     def step_power(self):
+        """Catch U-Boot as the router starts. Never fails on time: it waits for the
+        operator (power on, or a power cycle when the router is already running)."""
         self.step = "power"
-        self.say("waiting for power-on",
-                 "Set DIP SW3 to A=1 B=0 (eMMC), no SD card, then POWER ON this router.")
         c = self.con
-        end = time.time() + 600
-        acc = ""
-        while time.time() < end:
-            acc += c.read(1.0)
+        # Old output is no evidence of the router's state now (25.0.32.0 lab: a power
+        # cycle while the bay was stopped sat in the serial buffer and was replayed at
+        # Retry). Drop it, then poke: an already-running router answers (login / prompt).
+        # Only then ask for power — from here on every byte is read.
+        c.ser.reset_input_buffer()
+        c.write("\n")
+        self.say("waiting for power-on",
+                 "Set DIP SW3 to A=1 B=0 (eMMC), no SD card, then switch this router ON "
+                 "(already on? OFF, wait 5 seconds, ON).")
+        acc, last, quiet_said, linux_said = "", time.time(), False, False
+        while True:
+            self.check_stop()
+            got = c.read(1.0)
+            if got:
+                acc += got
+                last = time.time()
             clean = acc[-3000:]
             if UBOOT_PROMPT.search(clean[-200:]):
                 break
@@ -321,14 +351,19 @@ class Bay(threading.Thread):
                     c.write("0\n")             # boot menu: 0 = Exit to the shell
                     c.read(6, rx=UBOOT_PROMPT)
                 break
-            if "Please press Enter to activate" in clean or "login:" in clean or "Linux version" in clean[-400:]:
-                # already running (switched on too early, or no countdown): not an error —
-                # ask for a power cycle and keep watching for U-Boot
+            if LINUX_SEEN.search(clean[-400:]) or "Please press Enter to activate" in got or "Linux version" in got:
+                # already running (switched on too early, or not switched off): not an
+                # error — ask for a power cycle and keep watching for U-Boot
                 acc = ""
-                self.say("router is already running Linux — the U-Boot countdown was missed",
-                         "Switch this router OFF, wait 5 seconds, then switch it ON again.")
-        else:
-            self.fail("no U-Boot seen on this bay in 10 minutes — is it powered and is the serial cable on the UART?")
+                if not linux_said:
+                    linux_said = True
+                    self.say("this router is already on — the station has to catch it as it starts",
+                             "Switch this router OFF, wait 5 seconds, then switch it ON again.")
+            if not quiet_said and time.time() - last > POWER_QUIET:
+                quiet_said = True
+                self.say(f"nothing from this router for {POWER_QUIET // 60 or 1} minute(s) — still waiting",
+                         "Switch this router ON (already on? OFF, wait 5 seconds, ON). "
+                         "Nothing happens? Check its power and that the serial cable is on its UART pins.")
         out = c.uboot("version", 10)
         if not UBOOT_PROMPT.search(out[-200:]):
             self.fail("could not reach the U-Boot prompt")
@@ -352,6 +387,9 @@ class Bay(threading.Thread):
     def step_tftp(self):
         self.step = "tftp"
         c = self.con
+        with self.st.lock:                     # from here on the eMMC is written: no Stop batch
+            self.check_stop()
+            self.wrote = True
         ip = f"192.168.1.{100 + self.num}"
         if not TEST_MODE:                      # link is up now (router on): wait for the station address
             for _ in range(30):
@@ -500,13 +538,18 @@ class BayFailed(Exception):
     pass
 
 
+class BayStopped(Exception):
+    pass
+
+
 class Station:
     def __init__(self):
         self.lock = threading.Lock()
         self.events = []
-        self.stage = "setup"            # setup | detected | building | labelling | complete
+        self.stage = "setup"            # setup | detected | building | labelling | complete | stopped
         self.bays = []
         self.ports = []
+        self.ignored = []               # serial devices that cannot be a router bay
         self.batch_dir = None
         self.version = read_version()
         self.images = {}
@@ -562,13 +605,20 @@ class Station:
         override = os.environ.get("RNODE_STATION_PORTS", "")
         ports = (override.split(",") if override else
                  sorted(glob.glob("/dev/serial/by-path/*")) or sorted(glob.glob("/dev/ttyUSB*")))
-        found, seen = [], set()
+        found, seen, ignored = [], set(), []
         for p in ports:
             real = os.path.realpath(p)
             if real in seen:                 # one adapter can appear under several by-path names
                 continue
             seen.add(real)
-            info = {"port": p, "dev": os.path.realpath(p), "seen": "no output (router off?)"}
+            info = {"port": p, "dev": real, "seen": "no output (router off?)"}
+            if os.path.basename(real).startswith("ttyACM"):
+                # A router's console is a USB-serial adapter on its UART pins (ttyUSB).
+                # ttyACM is another board's own USB console (2026-11-10: a BTCRNodeII
+                # board was taken as bay 1) — never a bay.
+                info["seen"] = "not a router's serial adapter (ttyACM: another board or device) — ignored"
+                ignored.append(info)
+                continue
             busy = port_users(p)
             if busy:
                 info["seen"] = "IN USE by another program — close it first: " + busy[0]
@@ -585,15 +635,17 @@ class Station:
                 elif "login:" in out or "activate" in out:
                     info["seen"] = "Linux console (login)"
                 elif "#" in out:
-                    info["seen"] = "Linux shell"
+                    host = re.search(r"\w@([\w.-]+)", out)
+                    info["seen"] = "Linux shell" + (f" ({host.group(1)})" if host else "")
                 elif out.strip():
                     info["seen"] = "output: " + out.strip()[-40:]
             except Exception as e:
                 info["seen"] = f"cannot open: {e}"
             found.append(info)
-        self.ports = found
+        self.ports, self.ignored = found, ignored
         self.stage = "detected"
-        self.event(f"detected {len(found)} serial adapter(s)")
+        self.event(f"detected {len(found)} serial adapter(s)"
+                   + (f", ignored {len(ignored)} other serial device(s)" if ignored else ""))
         return found
 
     def start(self, count):
@@ -623,6 +675,27 @@ class Station:
             b.start()
         threading.Thread(target=self.supervise, daemon=True).start()
 
+    def stop_batch(self):
+        """Stop batch: only while no bay has started writing (owner, 2026-11-10).
+        Back to the start screen; nothing on any router has changed."""
+        if self.stage != "building":
+            raise RuntimeError("There is no batch to stop.")
+        with self.lock:
+            writing = [b.num for b in self.bays if b.wrote]
+            if writing:
+                raise RuntimeError(f"Bay(s) {', '.join(map(str, writing))} are already writing the router — "
+                                   "the batch cannot be stopped now. Let it finish.")
+            for b in self.bays:
+                b.stop.set()
+        for b in self.bays:
+            b.retry_event.set()
+        for b in self.bays:
+            b.join(10)
+        self.stage = "setup"
+        self.event("batch stopped before anything was written — nothing changed on the routers")
+        self.bays, self.ports, self.ignored = [], [], []
+        self.label_bay, self.label_msg = None, ""
+
     def append_label(self, bay):
         """Inventory line — no password (owner, 2026-10-25): it is recalculated
         from the factory key whenever needed. key_id says which key made it."""
@@ -644,7 +717,10 @@ class Station:
 
     # --- sticker step: one bay at a time, after every bay is built ---
     def supervise(self):
-        while not all(b.status == "ok" for b in self.bays):
+        bays = self.bays
+        while not all(b.status == "ok" for b in bays):
+            if self.stage != "building" or self.bays is not bays:     # Stop batch
+                return
             time.sleep(1)
         self.stage = "labelling"
         self.event("all routers built — sticker step")
@@ -728,7 +804,8 @@ class Station:
         return {
             "stage": self.stage, "version": self.version, "last_batch_size": self.state.get("last_batch_size", 1),
             "factory_key": os.path.basename(self.factory_key), "test_key": "TEST" in os.path.basename(self.factory_key),
-            "station_ip": STATION_IP, "problems": self.problems, "ports": self.ports,
+            "station_ip": STATION_IP, "problems": self.problems, "ports": self.ports, "ignored": self.ignored,
+            "can_stop": self.stage == "building" and not any(b.wrote for b in self.bays),
             "bays": [b.snapshot() for b in self.bays], "label_bay": self.label_bay, "label_msg": self.label_msg,
             "events": self.events[-12:], "batch_dir": self.batch_dir, "printer": bool(PRINT_CMD),
         }
@@ -804,6 +881,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     return self._json(STATION.recover(str(body.get("router", "")), str(body.get("reason", ""))))
                 except (LookupError, PermissionError) as e:
                     return self._json({"error": str(e)}, 400)
+            if u.path == "/api/stop":
+                STATION.stop_batch()
+                return self._json({"ok": True})
             if u.path == "/api/retry":
                 for b in STATION.bays:
                     if b.num == int(body.get("bay", 0)) and b.status == "failed":

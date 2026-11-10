@@ -84,6 +84,7 @@
     <div id="portsBox" hidden>
       <p class="muted">Serial adapters found — one per bay. Bay numbers follow the USB port the adapter is plugged into.</p>
       <table><thead><tr><th>Bay</th><th>Serial adapter</th><th>Console</th></tr></thead><tbody id="ports"></tbody></table>
+      <p class="muted" id="ignored" hidden></p>
       <p id="confirmText"></p>
       <div class="row"><button class="primary" id="btnStart" disabled>Confirm and start the build</button></div>
     </div>
@@ -92,6 +93,10 @@
   <section class="card now" id="nowCard" hidden>
     <h2>What to do now</h2>
     <div id="nowList"></div>
+    <div class="row" id="stopRow" hidden>
+      <button id="btnStop">Stop batch</button>
+      <span class="muted">Possible until a router starts being written — nothing on the routers changes.</span>
+    </div>
   </section>
 
   <section class="card" id="labelCard" hidden>
@@ -159,8 +164,10 @@ function render(s) {
   $("setup").hidden = !setupStage;
   $("btnDetect").disabled = !setupStage;
 
+  $("portsBox").hidden = !((s.ports || []).length || (s.ignored || []).length);
+  if (!(s.ports || []).length) { $("ports").replaceChildren(); $("btnStart").disabled = true;
+    $("confirmText").textContent = (s.ignored || []).length ? "No router serial adapter found — connect one per router, then Detect again." : ""; }
   if (s.ports && s.ports.length) {
-    $("portsBox").hidden = false;
     $("ports").replaceChildren(...s.ports.map((p, i) => {
       const tr = el("tr"); tr.append(el("td", null, String(i + 1)), el("td", null, p.port.replace("/dev/serial/by-path/", "")), el("td", null, p.seen)); return tr;
     }));
@@ -172,6 +179,9 @@ function render(s) {
                             : `${n} routers requested but only ${s.ports.length} serial adapter(s) found — connect one adapter per router.`);
     $("btnStart").disabled = !ok;
   }
+  const ign = s.ignored || [];
+  $("ignored").hidden = !ign.length;
+  $("ignored").textContent = ign.map(p => "Ignored: " + p.port.replace("/dev/serial/by-path/", "") + " — " + p.seen).join(" · ");
   $("countHint").textContent = s.last_batch_size ? `last batch: ${s.last_batch_size}` : "";
 
   const bays = s.bays || [];
@@ -206,6 +216,7 @@ function render(s) {
   });
   $("nowCard").hidden = !bays.length;
   $("nowList").replaceChildren(...acts);
+  $("stopRow").hidden = !s.can_stop;
   const urgent = bays.some(b => b.instruction && b.status !== "ok");
   $("nowCard").className = "card now" + (urgent ? " attention" : "");
   const first = bays.find(b => b.instruction && b.status !== "ok");
@@ -252,6 +263,11 @@ $("btnRecover").onclick = async () => {
 $("count").oninput = () => { countTouched = true; if (state) render(state); };
 $("btnDetect").onclick = async () => { $("btnDetect").disabled = true; $("btnDetect").textContent = "Detecting…";
   await post("/api/detect"); $("btnDetect").textContent = "Detect again"; $("btnDetect").disabled = false; };
+$("btnStop").onclick = async () => {
+  if (!confirm("Stop this batch? Nothing has been written to the routers yet; you go back to Detect.")) return;
+  $("btnStop").disabled = true;
+  try { await post("/api/stop"); } finally { $("btnStop").disabled = false; }
+};
 $("btnStart").onclick = async () => {
   const n = Number($("count").value);
   if (!confirm(`Start building ${n} router(s)? Each router: DIP A=1 B=0 (eMMC), no SD card, serial + LAN cable, then power on when asked.`)) return;

@@ -5,7 +5,10 @@
 # table (7391), TFTP writes (preloader, FIP, production), reboot, console
 # login, verify, provisioning over serial (label secret = HMAC(factory key,
 # MAC), labels.csv), label mode + blue LED + WPS press → batch complete.
-# Also: a wrong partition table stops the bay; the batch size is remembered.
+# Also: a wrong partition table stops the bay; the batch size is remembered;
+# the power step waits for the operator as long as it takes (no 10-minute
+# failure); Stop batch works until the first write and is refused after it;
+# a ttyACM device (another board's own console) is never taken as a bay.
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 fail() { echo "FAIL: $*" >&2; exit 1; }
@@ -117,7 +120,9 @@ class Router(threading.Thread):
 r = Router(); r.start()
 port = 18000 + os.getpid() % 1000
 os.symlink(r.path, W + f"/alias-a-{MODE}"); os.symlink(r.path, W + f"/alias-b-{MODE}")   # one adapter, two names (by-path usb + usbv2)
-env = dict(os.environ, RNODE_STATION_TEST="1", RNODE_STATION_PORTS=",".join([W + f"/alias-a-{MODE}", W + f"/alias-b-{MODE}"]), RNODE_TFTP_ROOT=W + "/tftp",
+os.makedirs(W + f"/acm-{MODE}", exist_ok=True); open(W + f"/acm-{MODE}/ttyACM9", "w").close()   # another board's USB console
+env = dict(os.environ, RNODE_STATION_TEST="1", RNODE_STATION_PORTS=",".join([W + f"/acm-{MODE}/ttyACM9", W + f"/alias-a-{MODE}", W + f"/alias-b-{MODE}"]), RNODE_TFTP_ROOT=W + "/tftp",
+           RNODE_POWER_QUIET="2" if MODE == "late" else "300",
            KNOTS_FACTORY_DIR=W + "/kf", KNOTS_FACTORY_KEY_FILE=W + "/kf/factory-TEST.key",
            KNOTS_LABELS_CSV=W + "/kf/labels.csv",
            KNOTS_LABEL_PRINT_CMD="cp {png} " + W + "/printed-" + MODE + ".png",
@@ -135,6 +140,12 @@ def api(path, body=None):
         except urllib.error.URLError:
             time.sleep(0.2)
     raise SystemExit("station did not answer")
+def post(path, body=None):    # returns the error JSON too (api() retries on HTTP errors)
+    req = urllib.request.Request(U + path, data=json.dumps(body or {}).encode(), headers={"Content-Type": "application/json"})
+    try:
+        return json.load(urllib.request.urlopen(req, timeout=20))
+    except urllib.error.HTTPError as e:
+        return json.load(e)
 html = urllib.request.urlopen(U + "/").read().decode() if api("/api/state") else ""
 assert "RNode Factory Station" in html
 st = api("/api/state"); assert st["last_batch_size"] == 1, st
@@ -151,16 +162,41 @@ if MODE == "busy":      # a forgotten console holds the bay's port: say so, neve
     print("BUSY", det["ports"][0]["seen"][:40], "|", res.get("error", "")[:70])
     p.terminate(); sys.exit(0)
 det = api("/api/detect", {}); assert len(det["ports"]) == 1, det
+st = api("/api/state"); print("IGNORED", len(st["ignored"]), st["ignored"][0]["seen"][:40] if st["ignored"] else "")
+if MODE == "stop":      # Stop batch before anything is written → back to Detect, port released
+    res = api("/api/start", {"count": 1}); assert res.get("ok"), res
+    time.sleep(1.5); st = api("/api/state"); can = st["can_stop"]
+    res = post("/api/stop"); st = api("/api/state")
+    det = api("/api/detect", {})
+    print("STOP", res.get("ok"), can, st["stage"], len(st["bays"]), "|", det["ports"][0]["seen"][:30])
+if MODE == "stale":     # a boot from earlier sits unread in the serial buffer; the router now idles in Linux
+    r.out("\r\nNOTICE:  BL2: v2.13.0\r\nU-Boot 2025.10-OpenWrt\r\nHit any key to stop autoboot:  1 \r\n"
+          "Starting kernel ...\r\n[    0.000000] Linux version 6.12\r\nPlease press Enter to activate this console.\r\n"
+          + "".join(f"[   2{i % 10}.{i:06d}] br-lan: port 6(phy1-ap0) entered forwarding state\r\n" for i in range(30)))
+    r.state = "activate"; time.sleep(0.5)
 res = api("/api/start", {"count": 1}); assert res.get("ok"), res
+if MODE == "stale":
+    time.sleep(4); b0 = api("/api/state")["bays"][0]
+    print("STALE", b0["status"], "|", b0["instruction"][:40])
+if MODE == "late":      # nobody switches it on for a while: keep waiting, hint at the cables, never fail
+    time.sleep(5); b0 = api("/api/state")["bays"][0]
+    print("LATE", b0["status"], "|", b0["message"][:40], "|", b0["instruction"][:40])
 if MODE == "early":     # switched on before Start: station sees Linux, must ask for a power cycle, not fail
     time.sleep(1); r.out("\r\n[   12.0] procd: - init -\r\nPlease press Enter to activate this console.\r\n")
     time.sleep(3); st = api("/api/state"); b0 = st["bays"][0]
     print("EARLY", b0["status"], "|", b0["instruction"])
+for _ in range(100):    # the operator switches on when the screen says so (not before the bay listens)
+    st = api("/api/state")
+    if st["bays"] and st["bays"][0]["instruction"]:
+        break
+    time.sleep(0.1)
 r.power_on()
-pressed = False
+pressed = False; stop_late = None
 end = time.time() + 150
 while time.time() < end:
     st = api("/api/state")
+    if r.erased and stop_late is None:      # the eMMC is being written: Stop batch is refused
+        stop_late = post("/api/stop"); print("STOPLATE", st["can_stop"], "|", stop_late.get("error", "")[:60])
     if r.led == "on" and not pressed:
         time.sleep(0.5); r.out(f"\r\nRNODE-IDENTIFY rnode-2233 {MAC}\r\n"); pressed = True
     if st["stage"] in ("complete", "stopped") or (st["bays"] and st["bays"][0]["status"] == "failed"):
@@ -211,6 +247,8 @@ echo "$out" | grep -qx "ERASED_FIRST True" || fail "old production must be erase
 echo "$out" | grep -q "confirmed" || fail "sticker not confirmed: $out"
 echo "$out" | grep -q "^POWERED_OFF True | STEPDONE \[True\]" && echo "$out" | grep -q "MSG ✔ off — ready to box" \
 	|| fail "ready to box only after a clean shutdown: $out"
+echo "$out" | grep -q "^IGNORED 1 not a router's serial adapter (ttyACM" || fail "ttyACM device must be ignored, not a bay: $out"
+echo "$out" | grep -q "^STOPLATE False | Bay(s) 1 are already writing the router" || fail "Stop batch must be refused once writing: $out"
 pass "station screen end to end (simulated router): detect → TFTP install → boot → verify → provision (HMAC secret; inventory without passwords) → sticker + WPS → complete; lost sticker recovered and printed; batch size remembered"
 out=$(timeout 200 python3 "$W/sim.py" "$W" "$B" "$VER" slowboot 2>&1) || fail "station run (slow boot): $out"
 echo "$out" | grep -q "^STAGE complete STATUS ok" || fail "router still booting must be waited for: $out"
@@ -219,6 +257,18 @@ out=$(timeout 150 python3 "$W/sim.py" "$W" "$B" "$VER" early 2>&1) || fail "stat
 echo "$out" | grep -q "^EARLY running | Switch this router OFF" && echo "$out" | grep -q "^STAGE complete STATUS ok" \
 	|| fail "router already running at Start: $out"
 pass "router already running at Start: asks for a power cycle (no failure), then completes"
+out=$(timeout 150 python3 "$W/sim.py" "$W" "$B" "$VER" stale 2>&1) || fail "station run (stale boot output): $out"
+echo "$out" | grep -q "^STALE running | Switch this router OFF" && echo "$out" | grep -q "^STAGE complete STATUS ok" \
+	|| fail "old boot output in the serial buffer, router idle in Linux: must ask for a power cycle, then complete: $out"
+pass "old boot output left in the serial buffer (router idle in Linux): ignored, power cycle asked for, then completes"
+out=$(timeout 150 python3 "$W/sim.py" "$W" "$B" "$VER" late 2>&1) || fail "station run (late power-on): $out"
+echo "$out" | grep -q "^LATE running | nothing from this router for 1 minute(s) | Switch this router ON" && echo "$out" | grep -q "^STAGE complete STATUS ok" \
+	|| fail "power step must keep waiting (hint, no failure) until the router is switched on: $out"
+pass "router switched on late: the station keeps waiting (cable hint, no failure), then completes"
+out=$(timeout 150 python3 "$W/sim.py" "$W" "$B" "$VER" stop 2>&1) || fail "station run (stop batch): $out"
+echo "$out" | grep -q "^STOP True True setup 0 | no output" && echo "$out" | grep -q "^STAGE complete STATUS ok" \
+	|| fail "Stop batch before writing: back to Detect, port released, next batch runs: $out"
+pass "Stop batch before anything is written: back to Detect, serial port released; refused once writing started"
 out=$(timeout 150 python3 "$W/sim.py" "$W" "$B" "$VER" badgpt 2>&1) || fail "station run (bad GPT): $out"
 echo "$out" | grep -q "STATUS failed MSG ✘ eMMC partition table is not the 7391 layout" || fail "bad GPT not stopped: $out"
 pass "a board with the wrong eMMC partition table is stopped before anything is written"
