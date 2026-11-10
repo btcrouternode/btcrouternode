@@ -155,9 +155,15 @@ class Console:
         self.idents = []
         self.lock = threading.Lock()
         self._partial = ""
+        # Power step: a U-Boot countdown (3 s) must never be swallowed by another read
+        # (e.g. the login before an automatic restart) — any read stops at once.
+        self.watch_countdown = False
+        self.countdown = False
 
     def _feed(self, text):
         self.log.write(text)
+        if self.watch_countdown and ("Hit any key" in text or "stop autoboot" in text):
+            self.countdown = True
         self.idents += [m.group(1) for m in IDENT_RX.finditer(text)]
         text = self._partial + ANSI.sub("", text).replace("\r", "")
         lines = text.split("\n")
@@ -175,6 +181,8 @@ class Console:
                 s = c.decode("utf-8", "replace")
                 acc += s
                 self._feed(s)
+                if self.watch_countdown and self.countdown:
+                    break
                 clean = ANSI.sub("", acc)
                 if (until and any(u in clean for u in until)) or (rx and rx.search(clean[-300:])):
                     time.sleep(0.2)
@@ -214,7 +222,11 @@ class Console:
         if "login:" not in out:
             return "# " in out
         for pw in passwords:
+            if self.watch_countdown and self.countdown:
+                return False                 # U-Boot is counting down: type nothing more
             self.write("root\n"); self.read(4, until=["assword"])
+            if self.watch_countdown and self.countdown:
+                return False
             self.write(pw + "\n")
             out = self.read(t, until=["# ", "incorrect"])
             if "incorrect" not in out.lower() and "# " in out:
@@ -330,11 +342,24 @@ class Bay(threading.Thread):
         # Retry). Drop it, then poke: an already-running router answers (login / prompt).
         # Only then ask for power — from here on every byte is read.
         c.ser.reset_input_buffer()
+        c.countdown, c.watch_countdown = False, True
+        try:
+            self._catch_uboot(c)
+        finally:
+            c.watch_countdown = False
+        out = c.uboot("version", 10)
+        if not UBOOT_PROMPT.search(out[-200:]):
+            self.fail("could not reach the U-Boot prompt")
+        self.say("U-Boot caught", "")
+        self.finish_step("power")
+
+    def _catch_uboot(self, c):
         c.write("\n")
         self.say("waiting for power-on",
                  "Set DIP SW3 to A=1 B=0 (eMMC), no SD card, then switch this router ON "
                  "(already on? OFF, wait 5 seconds, ON).")
-        acc, last, quiet_said, linux_said = "", time.time(), False, False
+        acc, last, quiet_said, linux_said, reboots = "", time.time(), False, False, 0
+        shutting_down_until = 0.0        # after "reboot": the prompt / shutdown output is not "still on"
         while True:
             self.check_stop()
             got = c.read(1.0)
@@ -344,18 +369,37 @@ class Bay(threading.Thread):
             clean = acc[-3000:]
             if UBOOT_PROMPT.search(clean[-200:]):
                 break
-            if "Hit any key" in clean or "stop autoboot" in clean:
+            if c.countdown or "Hit any key" in clean or "stop autoboot" in clean:
+                c.countdown = False
                 c.write(" ")
                 menu = c.read(3)
                 if UBOOT_PROMPT.search(menu[-200:]) is None:
                     c.write("0\n")             # boot menu: 0 = Exit to the shell
                     c.read(6, rx=UBOOT_PROMPT)
                 break
-            if LINUX_SEEN.search(clean[-400:]) or "Please press Enter to activate" in got or "Linux version" in got:
-                # already running (switched on too early, or not switched off): not an
-                # error — ask for a power cycle and keep watching for U-Boot
+            if time.time() >= shutting_down_until and (
+                    LINUX_SEEN.search(clean[-400:]) or "Please press Enter to activate" in got or "Linux version" in got):
+                # Already running — the routers are on for Detect (owner, 2026-11-10: the
+                # station restarts them itself). A new unit takes the factory password:
+                # log in and reboot cleanly, then catch U-Boot as it comes back. A unit that
+                # is already set up refuses it: only then ask for a power cycle.
                 acc = ""
-                if not linux_said:
+                if reboots < 2 and not linux_said:
+                    self.say("router is already on — logging in to restart it")
+                    if c.login([FACTORY_PASS], t=15):
+                        reboots += 1
+                        c.write("reboot\n")
+                        shutting_down_until = time.time() + SHUTDOWN_TIMEOUT   # node stop + unmount first
+                        self.say("restarting the router (clean shutdown: node stops first, a few minutes)",
+                                 "Nothing to do — the station restarts this router itself. Leave the power ON.")
+                        last = time.time()
+                        continue
+                    if c.countdown:              # switched on by hand meanwhile: catch it
+                        continue
+                    linux_said = True
+                    self.say("router is already on and refuses the factory password (already set up?)",
+                             "Switch this router OFF, wait 5 seconds, then switch it ON again.")
+                elif not linux_said:
                     linux_said = True
                     self.say("this router is already on — the station has to catch it as it starts",
                              "Switch this router OFF, wait 5 seconds, then switch it ON again.")
@@ -364,11 +408,6 @@ class Bay(threading.Thread):
                 self.say(f"nothing from this router for {POWER_QUIET // 60 or 1} minute(s) — still waiting",
                          "Switch this router ON (already on? OFF, wait 5 seconds, ON). "
                          "Nothing happens? Check its power and that the serial cable is on its UART pins.")
-        out = c.uboot("version", 10)
-        if not UBOOT_PROMPT.search(out[-200:]):
-            self.fail("could not reach the U-Boot prompt")
-        self.say("U-Boot caught", "")
-        self.finish_step("power")
 
     def step_check(self):
         self.step = "check"
@@ -516,7 +555,10 @@ class Bay(threading.Thread):
         cust = ""
         for _ in range(12):
             cust = c.sh('iwinfo 2>/dev/null | grep -q \'ESSID: "rnode"\' && echo WIFI_RNODE; '
-                        'iwinfo 2>/dev/null | grep -q "WPA2 PSK" && echo WIFI_WPA2; '
+                        # WPA2: 24.10 iwinfo says "WPA2 PSK", 25.12 says "WPA-PSK (CCMP)" for the
+                        # same psk2 — read the running hostapd config instead (wpa=2 on every radio)
+                        'ls /var/run/hostapd-phy*.conf >/dev/null 2>&1 && ! grep -L "^wpa=2$" /var/run/hostapd-phy*.conf '
+                        '| grep -q . && echo WIFI_WPA2; '
                         'wget -qO- -T 5 http://127.0.0.1/api/alive 2>/dev/null | grep -q alive && echo SETUP_WEB; '
                         '/usr/libexec/knots/captive-portal.sh status 2>/dev/null | grep -qx on && echo CAPTIVE_ON; '
                         'pgrep -f "avahi-publish -a -R" >/dev/null && echo NAME_PUBLISHED', 30)

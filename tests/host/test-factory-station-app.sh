@@ -79,7 +79,7 @@ class Router(threading.Thread):
             return
         if st == "pw":
             s.state = "sh" if l == "knotsnode21" and s.settings_wiped else "login"
-            s.out("\r\nroot@node-router:~# " if l == "knotsnode21" else "\r\nLogin incorrect\r\nnode-router login: ")
+            s.out("\r\nroot@node-router:~# " if s.state == "sh" else "\r\nLogin incorrect\r\nnode-router login: ")
             return
         if st == "activate":
             s.state = "login"; s.out("\r\nnode-router login: "); return
@@ -105,6 +105,10 @@ class Router(threading.Thread):
             elif "factory-label.sh led on" in body: s.led = "on"; r = "label-led on rnode-2233"
             elif "factory-label.sh led off" in body: s.led = "off"
             elif "factory-label.sh off" in body: s.label = False; s.led = "off"
+            elif body.strip() == "reboot":   # clean restart: the prompt comes back first, then U-Boot
+                s.reboots = getattr(s, "reboots", 0) + 1
+                s.out(l + "\r\nroot@node-router:~# \r\n[  120.0] reboot: Restarting system\r\n"); s.state = "off"
+                threading.Timer(1.5, s.power_on).start(); return
             elif body.strip() == "poweroff":
                 if MODE == "stuck":            # shutdown hangs: nothing after the echo
                     s.out(l + "\r\n"); return
@@ -174,23 +178,26 @@ if MODE == "stale":     # a boot from earlier sits unread in the serial buffer; 
           "Starting kernel ...\r\n[    0.000000] Linux version 6.12\r\nPlease press Enter to activate this console.\r\n"
           + "".join(f"[   2{i % 10}.{i:06d}] br-lan: port 6(phy1-ap0) entered forwarding state\r\n" for i in range(30)))
     r.state = "activate"; time.sleep(0.5)
+if MODE == "autoreboot":   # a new unit, on for Detect (factory password): the station restarts it itself
+    r.settings_wiped = True; r.state = "activate"
 res = api("/api/start", {"count": 1}); assert res.get("ok"), res
 if MODE == "stale":
-    time.sleep(4); b0 = api("/api/state")["bays"][0]
+    time.sleep(8); b0 = api("/api/state")["bays"][0]
     print("STALE", b0["status"], "|", b0["instruction"][:40])
 if MODE == "late":      # nobody switches it on for a while: keep waiting, hint at the cables, never fail
     time.sleep(5); b0 = api("/api/state")["bays"][0]
     print("LATE", b0["status"], "|", b0["message"][:40], "|", b0["instruction"][:40])
 if MODE == "early":     # switched on before Start: station sees Linux, must ask for a power cycle, not fail
     time.sleep(1); r.out("\r\n[   12.0] procd: - init -\r\nPlease press Enter to activate this console.\r\n")
-    time.sleep(3); st = api("/api/state"); b0 = st["bays"][0]
+    time.sleep(6); st = api("/api/state"); b0 = st["bays"][0]   # after the factory-password login attempt
     print("EARLY", b0["status"], "|", b0["instruction"])
 for _ in range(100):    # the operator switches on when the screen says so (not before the bay listens)
     st = api("/api/state")
     if st["bays"] and st["bays"][0]["instruction"]:
         break
     time.sleep(0.1)
-r.power_on()
+if MODE != "autoreboot":
+    r.power_on()
 pressed = False; stop_late = None
 end = time.time() + 150
 while time.time() < end:
@@ -204,6 +211,9 @@ while time.time() < end:
     time.sleep(0.5)
 b = st["bays"][0] if st["bays"] else {}
 print("STAGE", st["stage"], "STATUS", b.get("status"), "MSG", b.get("message"))
+if MODE == "autoreboot":
+    ev = open(st["batch_dir"] + "/events.log").read()
+    print("AUTOREBOOT", getattr(r, "reboots", 0), "restarting the router" in ev, "Switch this router OFF" in ev)
 print("POWERED_OFF", getattr(r, "powered_off", False), "| STEPDONE", [x["done"] for x in b.get("steps", []) if x["id"] == "done"])
 if MODE in ("ok", "early", "slowboot"):
     rows = list(csv.DictReader(open(W + "/kf/labels.csv")))
@@ -257,6 +267,10 @@ out=$(timeout 150 python3 "$W/sim.py" "$W" "$B" "$VER" early 2>&1) || fail "stat
 echo "$out" | grep -q "^EARLY running | Switch this router OFF" && echo "$out" | grep -q "^STAGE complete STATUS ok" \
 	|| fail "router already running at Start: $out"
 pass "router already running at Start: asks for a power cycle (no failure), then completes"
+out=$(timeout 150 python3 "$W/sim.py" "$W" "$B" "$VER" autoreboot 2>&1) || fail "station run (auto restart): $out"
+echo "$out" | grep -q "^STAGE complete STATUS ok" && echo "$out" | grep -q "^AUTOREBOOT 1 True False" \
+	|| fail "router on at Start (factory password): restarted once by the station, no power cycle asked, completes: $out"
+pass "router already on at Start (new unit): the station logs in and restarts it once itself, no power cycle needed"
 out=$(timeout 150 python3 "$W/sim.py" "$W" "$B" "$VER" stale 2>&1) || fail "station run (stale boot output): $out"
 echo "$out" | grep -q "^STALE running | Switch this router OFF" && echo "$out" | grep -q "^STAGE complete STATUS ok" \
 	|| fail "old boot output in the serial buffer, router idle in Linux: must ask for a power cycle, then complete: $out"
