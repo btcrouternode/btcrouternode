@@ -1,6 +1,6 @@
 # RNode User Guide
 
-**Firmware 25.0.32.0** (build 122) · OpenWrt 25.12 · Bitcoin Core 32.1
+**Firmware 25.1.32.0** (build 123) · OpenWrt 25.12 · Bitcoin Core 32.1
 
 RNode is a home internet router that is also a **Bitcoin full node**: it keeps
 its own copy of the Bitcoin blockchain on a built-in drive and checks every
@@ -12,7 +12,7 @@ It does not teach OpenWrt or Bitcoin Core themselves. Where a change can only
 be made in the router's advanced pages (**Router settings**, OpenWrt's LuCI),
 the guide gives the exact clicks.
 
-> Screenshots are of firmware 25.0.32.0. Numbers, names and addresses in them
+> Screenshots are of firmware 25.1.32.0, in English. Numbers, names and addresses in them
 > are examples. They are made with `contrib/guide-screenshots/capture.py`, so
 > every release can refresh them.
 
@@ -227,11 +227,14 @@ buttons. To change them, open **Change language or timezone**:
 - **Language:** English, Español, Deutsch, Français, 简体中文, 日本語,
   Português (Brasil). The page changes language straight away.
 - **Timezone:** sets the router's clock and the **Wi-Fi country** shown below
-  it (which radio channels are allowed). **If your timezone is not in the list,
-  pick the nearest one** — otherwise the first entry in the list is used.
+  it (which radio channels are allowed). If your browser's timezone is not in
+  the list, Setup picks a listed one with the same time right now (in the same
+  part of the world where possible), tells you so, and opens this control —
+  check it and choose a better one if you like.
 
-They are saved when you click Quick Start or Guided Setup. The language can be
-changed later in Settings.
+They are saved when you click Quick Start or Guided Setup. Every RNode page —
+and Router settings — then uses that language. It can be changed later in
+Settings.
 
 ### 3.5 Quick Start
 
@@ -256,13 +259,9 @@ address, or after about 20 seconds:
 ![Internet provider login](user-guide/img/setup-04-quick-isp.png)
 
 If your provider gave you a **username and password** (PPPoE), type them and
-click **Connect with ISP login**; otherwise **Skip for now** — you can finish
-Setup and sort out the internet later.
-
-> **Known issue (25.0.32.0):** an ISP login typed here is replaced by
-> *automatic* when you click **Finish setup**. If your provider needs a
-> username and password, use **Guided Setup** instead, or set it afterwards
-> (section 7).
+click **Connect with ISP login** — the login is kept when you finish Setup.
+Otherwise **Skip for now**: you can finish Setup and sort out the internet
+later.
 
 Quick Start keeps the Wi-Fi name **rnode** and the **Bitcoin Core** node. After
 **Finish setup**, go to [3.7](#37-finishing-reconnecting-to-the-new-wi-fi).
@@ -326,10 +325,9 @@ address is applied when Setup finishes.
 | **Wi-Fi password** / **Confirm** | 8–63 characters, not the label password |
 | **Country code** | Two letters, filled in from your timezone (e.g. `GB`, `US`, `AU`) |
 
-Click **Save Wi-Fi**. The new Wi-Fi is applied when Setup finishes — until
-then you stay connected to `rnode` with the label password. (If you are on
-Wi-Fi, the page may say you will be disconnected after saving; that happens at
-the end, not here.)
+Click **Save Wi-Fi**. Nothing is disconnected: the new Wi-Fi is applied when
+Setup finishes — until then you stay connected to `rnode` with the label
+password.
 
 #### Step 9 — Router password
 
@@ -411,7 +409,7 @@ The page refreshes itself every 10 seconds (**Refresh now** to update at once;
 | **Downloading & verifying the blockchain** (with %) | Catching up. The first full sync takes **days** | Leave it on |
 | **Node is initialising …** | Starting up, or loading after a power cut | Wait a few minutes |
 | **Waiting for the correct time …** | The router has no clock battery and sets the time from the internet | Check the WAN cable; the node starts by itself |
-| **Validating the chain database (reindex)** | A repair is running, using blocks already on the drive (not a re-download) | Keep the power on; can take many hours |
+| **Repairing the chain database** | A repair is running, using blocks already on the drive (not a re-download) | Keep the power on; can take many hours |
 | **Chain database needs repair** | The node cannot start until the database is rebuilt | See *Repairing the chain database* below |
 | **Node not running** + an error | Something stopped the node | See *Error codes* below |
 
@@ -503,8 +501,9 @@ Dark colours (same page):
 
 ## 5. Node software
 
-**Node software** shows which Bitcoin Core is installed and lets you install a
-newer official release yourself, or go back to the previous one.
+**Node software** shows which Bitcoin Core is installed (**Installed
+version**), whether the node is running, and lets you install a newer official
+release yourself, or go back to the previous one.
 
 ![Node software](user-guide/img/node-software.png)
 
@@ -519,8 +518,8 @@ newer official release yourself, or go back to the previous one.
 The file must be the **aarch64** Linux build (1–120 MB). The previous version
 is kept for rollback; the blockchain is not touched; the node restarts.
 
-**Rollback** — type **ROLLBACK** and click **Rollback Core** to return to the
-previous version (only if one is kept).
+**Roll back** — type **ROLLBACK** and click **Roll back Bitcoin Core** to
+return to the previous version (only if one is kept).
 
 Bitcoin Knots is no longer offered (since build 120); a router that ran Knots
 switched to Core by itself, keeping its blockchain.
@@ -546,11 +545,10 @@ At the top it shows the firmware version and **This router's own address**
 
 ![Settings: Language](user-guide/img/settings-language.png)
 
-Changes the language of the RNode pages **and** Router settings together:
+Changes the language of every RNode page **and** Router settings together:
 English, Español, Deutsch, Français, 简体中文, 日本語, Português (Brasil).
-Type **LANGUAGE**, click **Apply language**. No restart. (Setup, the menu and
-some pages are translated; other pages are in English.) The timezone stays as
-set in Setup.
+Type **LANGUAGE**, click **Apply language**. No restart. The timezone stays as
+set in Setup (change it in Router settings, section 7).
 
 ### 6.2 Node start / stop
 
@@ -623,9 +621,12 @@ is refused): the data folder, pruning (the node always keeps the full chain),
 wallet (disabled), the network and RPC addresses and ports, RPC passwords and
 access, Tor/proxy/listening settings, included files and notify scripts.
 
-> **After a firmware update**, check this section and the Beginner one: custom
-> node settings may go back to the defaults. A factory reset does **not**
-> change them.
+Your node settings (Beginner and Experienced) are **kept** when you update the
+firmware with *Keep settings* and when you do a factory reset. If a new
+firmware changes a default you never touched, you get the new default.
+
+> Updating **from 25.0.32.0** is the one exception: that version could not keep
+> them, so set them again after that one update.
 
 ---
 
@@ -716,7 +717,7 @@ switch it back on).
 |---|---|---|
 | Takes about | 5 minutes | 11 minutes |
 | Ends on | Node Status | Setup (Welcome) |
-| Wi-Fi, passwords, network | Kept | Back to the label |
+| Wi-Fi, passwords, network, node settings | Kept | Back to the label (node settings kept) |
 | Secure connection | Kept | New certificate — every computer installs it again |
 | Blockchain | Kept | Kept |
 
@@ -735,7 +736,7 @@ With **Reset settings** the steps end with *Opening Setup*:
 | *Another node operation is running* | Wait a minute and try again |
 
 **If it fails** after starting, the page says **Firmware Update Failed — No
-upgrade was applied**; the router keeps the previous firmware:
+update was applied**; the router keeps the previous firmware:
 
 ![Firmware update failed](user-guide/img/upgrade-failed.png)
 
@@ -809,7 +810,7 @@ Updated every 15 seconds.
 | Slow blink (1 s on, 1 s off) | Starting up, or the node is starting |
 | Fast blink | Syncing — catching up with the network |
 | Steady | Synced |
-| Very fast blink (briefly) | An update or factory reset is starting |
+| Very fast blink | An update or factory reset is running — do not switch off |
 | Off, **blue light blinking** | A problem — usually the blockchain drive. Open Node Status |
 
 ### Buttons
@@ -908,14 +909,16 @@ starting the update, then open `http://192.168.1.254/`.
 `LANGUAGE` · `STOP` · `START` · `REBOOT` · `SHUTDOWN` · `RENEW` · `RESET` ·
 `UPGRADE` · `SAVE` · `ADVANCED` · `REINDEX` · `INSTALL` · `ROLLBACK`
 
-### Known issues in 25.0.32.0
+### What changed in 25.1.32.0
 
-- Quick Start: an ISP (PPPoE) login typed in the pop-up is replaced by
-  automatic internet at **Finish setup**. Use Guided Setup or Router settings.
-- Guided Setup, Wi-Fi step: on Wi-Fi, the page says saving disconnects you; in
-  fact the change applies at the end of Setup.
-- Custom node configuration may return to defaults after a firmware update
-  that keeps settings. Check Settings → Bitcoin node configuration afterwards.
-- Some pages still say "Knots" (for example *Stopping Knots Services*); they
-  mean the Bitcoin node.
-- Some pages are only in English, whatever the language setting.
+- Quick Start keeps an ISP (PPPoE) login typed in its pop-up.
+- Guided Setup's Wi-Fi step says correctly that the change applies when Setup
+  finishes.
+- Node settings (Settings → Bitcoin node configuration) are kept across
+  firmware updates.
+- A browser timezone missing from Setup's list now selects a matching one and
+  says so (instead of always Australia/Sydney).
+- Every page is translated into all seven languages.
+- The status light keeps blinking very fast for the whole of an update or
+  factory reset.
+- Screens no longer show internal names or codes.

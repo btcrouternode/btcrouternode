@@ -493,7 +493,7 @@ Do **not** wipe M.2 on any of these paths.
 | GET | `status` | no | product_version, conf path exists, upgrade hints, `node_running`, `lang`, power confirm tokens |
 | GET | `conf` | no | safe + raw |
 | POST | `locale` | yes | `lang=` + `confirm=LANGUAGE` — Knots UI + LuCI (**U19**) |
-| POST | `conf_save` | yes | form: safe fields and/or `raw=`; `confirm=SAVE`; optional `advanced=1` + `confirm_advanced=ADVANCED` |
+| POST | `conf_save` | yes | form: safe fields; or `advanced=1` + `confirm=SAVE` + `confirm_advanced=ADVANCED` in the query with the raw bitcoin.conf as the request body (≤ 64 KiB, credentials in the `Authorization: KnotsForm …` header) |
 | POST | `upgrade` | yes | query `confirm=UPGRADE` + **`sha256=`** (required 64 hex); body = image bytes; verify before sysupgrade |
 | POST | `node_stop` | yes | `confirm=STOP` — stop bitcoind (**U18**) |
 | POST | `node_start` | yes | `confirm=START` — start bitcoind (**U18**); optional `reindex=1` + `reindex_kind=chainstate\|full` (**B24**) |
@@ -619,10 +619,16 @@ Default action: **`-reindex-chainstate`**. Node Status (**U16**) stays chainstat
 
 #### 7.6.6 Page / i18n
 
-- Setup steps 0…8 (Welcome → **HTTPS trust** → Locale → Password → WAN → Wi‑Fi → Node → Advanced → Done).
-  OS detect shows **only** the detected OS; optional “different computer/phone” reveals other OS tabs.
-- `data-i18n="key"` attributes; `i18n.js` loads `/i18n/<lang>.json` with English fallback.
-- Missing translation keys render English.
+- Setup steps 0…9 (Welcome → **HTTPS trust** → Choice (locale) → Quick Start | Guided: Node → WAN → LAN (advanced) → Wi‑Fi → Router password → Done) — `docs/FIRST_RUN_UX.md`.
+  OS detect shows the detected OS; “Different operating system” tabs show Windows / Linux (macOS by detection only).
+- **Every page** is translated (en, es, de, fr, zh-cn, ja, pt-br; 25.1.32.0): `data-i18n` / `data-i18n-html` /
+  `data-i18n-attr` in HTML, `KnotsI18n.t(key, vars)` in JS. English is bundled with each page as
+  `/i18n/en.js` (generated from `en.json` by `build/gen-i18n-en.py`), so no string ever shows as its key —
+  not even on the update / reset wait pages while the router reboots; other languages load from
+  `/i18n/<lang>.json`. Router API messages are translated by their error code where one exists.
+  LuCI pages (luci-entry, return bar) use the same catalogue copied to `/www/luci-static/resources/knots-i18n/`.
+- `tests/host/test-i18n.sh`: every language has every English key with the same `{placeholders}`;
+  every key used by a page exists; en.js matches en.json; no visible "Knots" or requirement codes.
 ---
 
 ## 8. LuCI / TLS / admin password
@@ -660,17 +666,17 @@ Retail copy / DOC3: tell users to **hold WPS ~5 seconds** to restore defaults an
 
 | State | Meaning | Pattern |
 |-------|---------|---------|
-| Booting | Host up, Knots not ready | `green:status` timer 1000/1000 ms |
+| Booting | Host up, node not ready | `green:status` timer 1000/1000 ms |
 | Syncing | `verificationprogress < 1` | `green:status` timer 200/200 ms |
 | Synced | At tip / healthy | `green:status` solid on |
-| Error | No disk / Knots down | `blue:wps` timer 400/400 ms (green off) |
+| Error | No disk / node down | `blue:wps` timer 400/400 ms (green off) |
+| Maintenance | Firmware update or factory reset in progress (`/tmp/knots/upgrade.active`, `/tmp/knots/factory-reset.active`) — wins over every other state | `green:status` timer 100/100 ms |
 
 GPIO line names locked in AS_BUILT **D32** (stock BPI-R4 LEDs).
 
 ### 9.3 Cron / procd
 
-- Optional: `status-api` cache refresh every 30s.
-- LED updater cron/procd every 30–60s reading same status.
+- `knots-status` (procd) rebuilds the status cache and runs the LED updater every 15 s.
 
 ---
 

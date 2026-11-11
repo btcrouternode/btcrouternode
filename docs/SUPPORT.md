@@ -2,7 +2,8 @@
 
 Short answers for the questions testers and customers will ask. Written for
 someone who is not technical; each article says what happened, then what to do.
-Applies to builds `24.10.8.29.3.96` and later unless noted.
+Applies to firmware `25.1.32.0` and later unless noted. The full user guide is
+[USER_GUIDE.md](USER_GUIDE.md).
 
 ---
 
@@ -15,11 +16,14 @@ router.
 
 **What to do (each computer or phone you use with the router):**
 
-1. Open `http://192.168.1.254/tls.html` (plain `http`).
-2. Follow the steps for your device. On Windows and Mac you download a small
-   file and open it; it asks for **your computer's** password, not the
-   router's. On Linux, paste the command the page shows into a Terminal.
-3. Close the browser completely and open it again.
+1. Open `http://192.168.1.254/` (plain `http`) — it shows **Add this computer**.
+2. Click **Enable Secure Connection** and follow the steps for your computer.
+   Windows: open the downloaded file and answer **Yes**. Mac: **Allow** →
+   **▶ Run** in Script Editor. Linux (Ubuntu, Debian, Mint): open the
+   downloaded `.deb` and click **Install**. Each asks for **your computer's**
+   password, not the router's.
+3. If the page does not move on by itself, close the browser completely and
+   open it again.
 
 The installer prints a "fingerprint" (a long line of letters and numbers).
 It must match the one under **Settings → Renew HTTPS certificate** on a
@@ -65,17 +69,16 @@ The pages remember the address you used, so you can keep using the IP address.
 password → type `RESET` → **Reset to factory defaults**. Takes about 11
 minutes; keep the page open. The router then opens Setup.
 
-**With the button (router password unknown):** hold the reset button for
-more than 5 seconds, then release. Wait about 11 minutes.
+**With the button (router password unknown):** hold the **WPS** button for
+5 seconds or more, then release. Wait about 11 minutes. (A short press only
+restarts the router. The **RST** button restarts it instantly and does not
+reset anything.)
 
 **After a reset:**
 
 - The router is back at `192.168.1.254`.
-- Router password: the one on the label (or `knotsnode21` on units without a
-  password label).
-- Wi‑Fi: units with a password label broadcast `rnode` with that password;
-  units without a label keep Wi‑Fi **off** until Setup is finished — use a
-  network cable.
+- Router password: the one on the label.
+- Wi‑Fi: `rnode` with the password on the label.
 - The blockchain copy on the M.2 drive is **not** erased.
 - A new security certificate is created (article 1).
 
@@ -96,10 +99,10 @@ address**) — use that, or the unit's IP address.
 - **"This image is not signed" / "signature is not valid"** — only on units
   whose firmware contains the RNode release key: the file is not an official
   release, or was modified. Nothing was changed.
-- **Unit on `24.10.8.29.3.88`:** that build cannot install upgrades from
-  Settings (it reboots without flashing). It needs a one-off manual upgrade
-  over SSH by support: copy the new `.itb` to `/tmp`, check its SHA256, then
-  `sysupgrade -v /tmp/<file>.itb`. Every later build upgrades normally.
+- **My node settings went back to the defaults after upgrading from
+  `25.0.32.0`.** That release did not keep them across an upgrade. Set them
+  again in **Settings → Bitcoin node configuration**; from `25.1.32.0` on they
+  are kept.
 - **The upgrade page shows `rnode.local` cannot be found** — wait 15 minutes
   from clicking **Verify & upgrade**, then open `http://192.168.1.254/`.
 

@@ -1,10 +1,15 @@
 # External wallets (P2B-B)
 
+> **Not in the current firmware.** This page describes a planned feature
+> (product phase 3). Firmware 25.x does not include it: the node's wallet
+> is disabled and no External apps page exists. See [USER_GUIDE.md](USER_GUIDE.md)
+> for what RNode does today.
+
 **Maps to:** W4, W9, W10, U5  
 **UI:** `https://192.168.1.254:21443/external.html`
 
 ## Default posture
-Knots RPC (`21.21.21.21:8332`) is **not** reachable from the LAN or WAN.  
+Node RPC (`21.21.21.21:8332`) is **not** reachable from the LAN or WAN.  
 Appliance wallet UI talks to RPC from the router host only.
 
 ## Explicit enable (LAN DNAT)
