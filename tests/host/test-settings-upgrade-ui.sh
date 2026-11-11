@@ -97,7 +97,7 @@ grep -q 'upgrade_live' "$ROOT/files/www/knots/shell.js" || {
 grep -q 'onUpgradePage' "$ROOT/files/www/knots/shell.js" || {
 	echo "FAIL: shell.js must treat upgrade page like reset"; exit 1
 }
-grep -q 'Firmware Upgrade Finalising Router Rebooting' "$UPG_JS" || {
+grep -q 'upgrade.reboot_title' "$UPG_JS" && grep -q '"upgrade.reboot_title": "Firmware Update Finishing' "$(dirname "$UPG_JS")/i18n/en.json" || {
 	echo "FAIL: upgrade.js must use firmware reboot title"; exit 1
 }
 grep -q 'upgrade-page' "$UPG_HTML" || {

@@ -190,6 +190,46 @@ conf_apply_safe_pairs() {
 	return 0
 }
 
+# Keep-settings firmware upgrade (25.0.32.0 bug: user node settings went back
+# to the defaults): print the NEW image's bitcoin.conf with the user's own
+# settings from the kept file applied. A kept line is the user's when its key
+# is not protected and it differs from OLD_IMAGE_CONF (the previous image's
+# file, kept as /etc/knots/bitcoin.conf.image); without that file every
+# non-protected kept line counts as the user's. Protected keys (topology,
+# RPC, wallet, hooks) always come from the new image. Comments and the
+# managed external-RPC block of the kept file are not carried over.
+# Args: NEW_IMAGE_CONF KEPT_CONF [OLD_IMAGE_CONF]
+conf_upgrade_merge() {
+	_old=${3:-}
+	_noold=0
+	[ -n "$_old" ] && [ -f "$_old" ] || { _old=/dev/null; _noold=1; }
+	awk -v keys="$(echo $CONF_PROTECTED_KEYS)" -v noold="$_noold" '
+	function parse(line,   l, c, eq) {
+		l = line; sub(/\r$/, "", l)
+		c = index(l, "#"); if (c) l = substr(l, 1, c - 1)
+		sub(/^[ \t]+/, "", l); sub(/[ \t]+$/, "", l)
+		K = ""; V = ""
+		if (l == "") return
+		if (l ~ /^\[/) { K = "["; return }
+		sub(/^-+/, "", l)
+		eq = index(l, "=")
+		if (eq) { K = substr(l, 1, eq - 1); V = substr(l, eq + 1) } else { K = l; V = "1" }
+		sub(/[ \t]+$/, "", K); sub(/^[ \t]+/, "", V); K = tolower(K)
+		sub(/^(main|test|testnet4|signet|regtest)\./, "", K)
+		if (!(K in P) && K ~ /^no/ && (substr(K, 3) in P)) K = substr(K, 3)
+	}
+	BEGIN { n = split(keys, b, " "); for (i = 1; i <= n; i++) P[b[i]] = 1 }
+	ph == 1 { parse($0); if (K != "" && K != "[") D[K "=" V] = 1; next }
+	ph == 2 { parse($0); if (K == "" || (K in P)) next
+		if (K == "[") { u[++nu] = $0; next }
+		if (!noold && ((K "=" V) in D)) next
+		u[++nu] = $0; U[K] = 1; nk++; next }
+	{ parse($0); if (K != "" && K != "[" && !(K in P) && (K in U)) next; print }
+	END { if (nk) { print ""; print "# Your settings (kept across firmware upgrades)"
+		for (i = 1; i <= nu; i++) print u[i] } }
+	' ph=1 "$_old" ph=2 "$2" ph=3 "$1"
+}
+
 conf_assert_product_keys() {
 	# After any write — product topology must remain (B1/B9/B11)
 	f=${1:-$CONF_HOST}

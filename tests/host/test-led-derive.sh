@@ -60,4 +60,20 @@ EOF
 out=$("$LED")
 [ "$out" = "error" ] || { echo "FAIL want error got $out"; exit 1; }
 
+# R-LED-MAINT (25.0.32.0 bug, user guide review 2026-11-10): during a firmware
+# update or factory reset the very fast blink must stay — the node is stopped
+# on purpose, so neither "booting" nor "error" may overwrite it.
+export KNOTS_UPGRADE_MARK="$tmp/upgrade.active" KNOTS_RESET_MARK="$tmp/factory-reset.active"
+for mark in "$KNOTS_UPGRADE_MARK" "$KNOTS_RESET_MARK"; do
+	: >"$mark"
+	out=$("$LED")
+	[ "$out" = "maintenance" ] || { echo "FAIL want maintenance ($mark) got $out"; exit 1; }
+	[ "$(cat "$tmp/green/trigger")" = timer ] && [ "$(cat "$tmp/green/delay_on")" = 100 ] \
+		&& [ "$(cat "$tmp/green/delay_off")" = 100 ] || { echo "FAIL maintenance must blink green 100/100"; exit 1; }
+	[ "$(cat "$tmp/blue/brightness")" = 0 ] || { echo "FAIL maintenance must not show the blue error light"; exit 1; }
+	rm -f "$mark"
+done
+out=$("$LED")
+[ "$out" = "error" ] || { echo "FAIL after the update/reset the real state must return (got $out)"; exit 1; }
+
 echo "PASS T-LED host derive"

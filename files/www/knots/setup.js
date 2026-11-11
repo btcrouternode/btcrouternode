@@ -3,6 +3,8 @@
    Flow (IUE v2): 0 Welcome → 1 Security (HTTP→trust) → 2 Choice (locale confirm)
    → Quick Start (3) | Guided: 4 Node → 5 WAN → 6 LAN → 7 Wi‑Fi → 8 Password → 9 Done */
 (function () {
+  function T(k, v) { return window.KnotsI18n ? window.KnotsI18n.t(k, v) : k; }
+
   var step = 0;
   var TOTAL = 10; /* 0..9 — U17 IUE v2 */
   var regionsCatalog = null;
@@ -86,12 +88,19 @@
           if (!input) return;
           var show = input.type === "password";
           input.type = show ? "text" : "password";
-          btn.textContent = show ? "Hide" : "Show";
           btn.setAttribute("aria-pressed", show ? "true" : "false");
-          btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+          labelPwToggle(btn);
         });
+        labelPwToggle(btn);
       })(buttons[i]);
     }
+  }
+
+  /* Show / Hide label from the button's state (redrawn on language load). */
+  function labelPwToggle(btn) {
+    var shown = btn.getAttribute("aria-pressed") === "true";
+    btn.textContent = shown ? T("setup.pw.hide") : T("setup.pw.show");
+    btn.setAttribute("aria-label", shown ? T("setup.pw.hide_aria") : T("setup.pw.show_aria"));
   }
 
   function stopTlsWatch() {
@@ -132,9 +141,7 @@
       p.hidden = sn !== n;
     }
     if ($("stepRestart")) $("stepRestart").hidden = true;
-    $("progressLabel").textContent = window.KnotsI18n
-      ? window.KnotsI18n.t("setup.progress", { n: n + 1, total: TOTAL })
-      : "Step " + (n + 1) + " of " + TOTAL;
+    $("progressLabel").textContent = T("setup.progress", { n: n + 1, total: TOTAL });
     banner("");
   }
 
@@ -142,10 +149,10 @@
     var n = (e && e.name) || "";
     var m = String((e && e.message) || e || "");
     if (n === "AbortError" || /aborted/i.test(m)) {
-      return "The router did not answer in time. Stay on this Wi-Fi and tap Save again.";
+      return T("setup.err.timeout");
     }
     if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) {
-      return "Lost the connection to the router. Rejoin Wi-Fi rnode and tap Save again.";
+      return T("setup.err.network");
     }
     return m;
   }
@@ -217,13 +224,13 @@
             // (.97 field report): explain and go to Node Status.
             if (r.status === 404) {
               setTimeout(function () { window.location.replace("/"); }, 4000);
-              throw new Error("Setup is already complete on this router. Opening Node Status…");
+              throw new Error(T("setup.err.already_complete"));
             }
             throw new Error(
-              "Setup API returned non-JSON (HTTP " + r.status + "). " + (t || "").slice(0, 120)
+              T("setup.err.non_json", { status: r.status }) + " " + (t || "").slice(0, 120)
             );
           }
-          if (!d) throw new Error("Bad response");
+          if (!d) throw new Error(T("setup.err.bad_response"));
           return d;
         });
       })
@@ -251,8 +258,8 @@
   function startDhcpTry() {
     hideWanButtons();
     $("pppoeBox").hidden = true;
-    $("wanCopy").textContent = "Connecting with DHCP (typical home modem)…";
-    $("wanState").textContent = "Checking…";
+    $("wanCopy").textContent = T("setup.wan.connecting");
+    $("wanState").textContent = T("setup.wan.checking");
     $("wanState").className = "state busy";
     dhcpTries = 0;
     api("wan_dhcp", { method: "POST", body: "" })
@@ -273,8 +280,8 @@
           if (d.up && d.ipv4) {
             clearInterval(dhcpTimer);
             dhcpTimer = null;
-            $("wanCopy").textContent = "Internet connected.";
-            $("wanState").textContent = "Address " + d.ipv4 + " (" + (d.proto || "dhcp") + ")";
+            $("wanCopy").textContent = T("setup.wan.connected");
+            $("wanState").textContent = T("setup.wan.address", { ip: d.ipv4, proto: d.proto || "dhcp" });
             $("wanState").className = "state";
             $("btnWanContinue").hidden = false;
             $("btnWanSkip").hidden = true;
@@ -285,9 +292,9 @@
           if (dhcpTries >= 12) {
             clearInterval(dhcpTimer);
             dhcpTimer = null;
-            wanFail("No address yet — check the WAN cable, or your ISP may need a login.");
+            wanFail(T("setup.wan.no_address"));
           } else {
-            $("wanState").textContent = "Still checking… (" + dhcpTries + ")";
+            $("wanState").textContent = T("setup.wan.still_checking", { n: dhcpTries });
           }
         })
         .catch(function () {
@@ -308,18 +315,15 @@
 
   function enterWifi(st) {
     if (st && st.wifi_available === false) {
-      $("wifiCopy").textContent = window.KnotsI18n
-        ? window.KnotsI18n.t("setup.wifi.none")
-        : "Wi‑Fi is not available on this unit.";
+      $("wifiCopy").textContent = T("setup.wifi.none");
       $("wifiForm").hidden = true;
       $("btnWifiSkip").hidden = false;
     } else {
-      $("wifiCopy").textContent = window.KnotsI18n
-        ? window.KnotsI18n.t("setup.wifi.body")
-        : "Choose a new Wi‑Fi password (required — not the factory password). The network name defaults to rnode.";
+      $("wifiCopy").textContent = T("setup.wifi.body");
       if (st && st.client_wifi) {
-        $("wifiCopy").textContent =
-          "You are on Wi‑Fi. After you save, this device will disconnect. Join the new network name with the new password — Setup will continue when you are back.";
+        /* Saving only stages the Wi-Fi; it is applied at Finish (25.0.32.0
+           wrongly said saving would drop the connection). */
+        $("wifiCopy").textContent = T("setup.wifi.body_onwifi");
       }
       $("wifiForm").hidden = false;
       if ($("wifiSteps")) $("wifiSteps").hidden = false;
@@ -382,6 +386,44 @@
     return det;
   }
 
+  /* Minutes east of UTC for an IANA zone right now (null if unknown). */
+  function zoneOffsetMin(zone) {
+    try {
+      var parts = new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "longOffset" })
+        .formatToParts(new Date());
+      var name = "";
+      for (var i = 0; i < parts.length; i++) if (parts[i].type === "timeZoneName") name = parts[i].value;
+      var m = /^GMT(?:([+-])(\d{1,2})(?::?(\d{2}))?)?$/.exec(name);
+      if (!m) return null;
+      if (!m[1]) return 0;
+      var v = parseInt(m[2], 10) * 60 + parseInt(m[3] || "0", 10);
+      return m[1] === "-" ? -v : v;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /* The browser's zone is not in the catalog (25.0.32.0 then picked the
+     first entry, Australia/Sydney, which also set the Wi-Fi country): take a
+     listed zone with the same UTC offset now, preferring the same region
+     (Europe/…); none → UTC. */
+  function nearestZone(browserZone, zones) {
+    var want = zoneOffsetMin(browserZone);
+    if (want === null) want = -new Date().getTimezoneOffset();
+    var region = String(browserZone || "").split("/")[0];
+    var best = "", bestScore = 0;
+    for (var i = 0; i < zones.length; i++) {
+      if (zoneOffsetMin(zones[i]) !== want) continue;
+      var score = 1 + (region && zones[i].split("/")[0] === region ? 1 : 0);
+      if (score > bestScore) { best = zones[i]; bestScore = score; }
+    }
+    if (best) return best;
+    return zones.indexOf("UTC") >= 0 ? "UTC" : (zones[0] || "");
+  }
+  window.__knotsNearestZone = nearestZone;   /* host test hook */
+
+  var zoneGuessed = "";
+
   function fillLocaleSelectors(pre) {
     pre = pre || {};
     return fetch("/i18n/regions.json", { cache: "no-store" })
@@ -419,6 +461,13 @@
               break;
             }
           }
+        }
+        zoneGuessed = "";
+        if (!tzSel.value && pre.zonename) {
+          var listed = [];
+          for (var j = 0; j < tzSel.options.length; j++) listed.push(tzSel.options[j].value);
+          tzSel.value = nearestZone(pre.zonename, listed);
+          if (tzSel.value) zoneGuessed = pre.zonename;
         }
         if (!tzSel.value && tzSel.options.length) tzSel.selectedIndex = 0;
         updateCountryShow();
@@ -466,9 +515,14 @@
       if (langSel && langSel.options[langSel.selectedIndex]) {
         langLabel = langSel.options[langSel.selectedIndex].textContent;
       }
-      $("choiceLocaleLine").textContent =
-        "Language & timezone (from your browser): " + langLabel +
-        " · " + (sel.zonename || "UTC");
+      $("choiceLocaleLine").textContent = T("setup.locale.line", { lang: langLabel, zone: sel.zonename || "UTC" });
+      /* Not in the list: say so, and open the control so it gets checked. */
+      if ($("choiceLocaleNote")) {
+        $("choiceLocaleNote").hidden = !zoneGuessed;
+        $("choiceLocaleNote").textContent = zoneGuessed
+          ? T("setup.locale.tz_nearest", { zone: zoneGuessed, chosen: sel.zonename || "UTC" }) : "";
+      }
+      if (zoneGuessed && $("choiceLocaleEdit")) $("choiceLocaleEdit").open = true;
     });
   }
 
@@ -520,7 +574,7 @@
         }
       })
       .catch(function () {});
-    setQuickWan("Checking your internet connection (automatic)…", "busy");
+    setQuickWan(T("setup.quick.wan_checking"), "busy");
     api("wan_dhcp", { method: "POST", body: "" })
       .then(function () {
         pollQuickWan(0);
@@ -536,7 +590,7 @@
       api("wan_status")
         .then(function (d) {
           if (d.up && d.ipv4) {
-            setQuickWan("Internet connected (" + d.ipv4 + ").", "ok");
+            setQuickWan(T("setup.quick.wan_ok", { ip: d.ipv4 }), "ok");
             return;
           }
           if (tries >= 9) {
@@ -552,7 +606,7 @@
   }
 
   function quickWanDown() {
-    setQuickWan("No internet address yet — you can still finish setup and configure internet later.", "");
+    setQuickWan(T("setup.quick.wan_down"), "");
     if ($("quickPppoeModal") && !quickPppoeShown) {
       quickPppoeShown = true;
       $("quickPppoeModal").hidden = false;
@@ -564,7 +618,7 @@
       var u = ($("quickPppoeUser").value || "").trim();
       var p = $("quickPppoePass").value || "";
       if (!u || !p) {
-        banner("Enter ISP username and password.", true);
+        banner(T("setup.err.isp_missing"), true);
         return;
       }
       api("wan_pppoe", { body: formBody({ username: u, password: p }) })
@@ -574,7 +628,7 @@
             return;
           }
           $("quickPppoeModal").hidden = true;
-          setQuickWan("Connecting with ISP login…", "busy");
+          setQuickWan(T("setup.wan.isp_connecting"), "busy");
           pollQuickWan(0);
         })
         .catch(function (e) {
@@ -597,24 +651,24 @@
     var wk2 = $("quickWifiKey2") ? $("quickWifiKey2").value || "" : "";
     var wifiHidden = $("quickWifiForm") && $("quickWifiForm").hidden;
     if (p1.length < 8) {
-      banner("Router password must be at least 8 characters.", true);
+      banner(T("setup.err.router_pw_short"), true);
       return;
     }
     if (p1 !== p2) {
-      banner("Router passwords do not match.", true);
+      banner(T("setup.err.router_pw_mismatch"), true);
       return;
     }
     if (!wifiHidden) {
       if (wk.length < 8 || wk.length > 63) {
-        banner("Wi‑Fi password must be 8–63 characters (WPA2 standard).", true);
+        banner(T("setup.err.wifi_length"), true);
         return;
       }
       if (isFactoryPass(wk)) {
-        banner("Choose a new Wi‑Fi password — not the factory default.", true);
+        banner(T("setup.err.wifi_factory"), true);
         return;
       }
       if (wk !== wk2) {
-        banner("Wi‑Fi passwords do not match.", true);
+        banner(T("setup.err.wifi_mismatch"), true);
         return;
       }
     }
@@ -660,11 +714,11 @@
     var p1 = $("pw1").value || "";
     var p2 = $("pw2").value || "";
     if (p1.length < 8) {
-      banner("Password must be at least 8 characters.", true);
+      banner(T("setup.err.pw_short"), true);
       return;
     }
     if (p1 !== p2) {
-      banner("Passwords do not match.", true);
+      banner(T("setup.err.pw_mismatch"), true);
       return;
     }
     $("btnPassword").disabled = true;
@@ -675,7 +729,7 @@
       .then(function (d) {
         $("btnPassword").disabled = false;
         if (!d.ok) {
-          banner(d.message || d.error || "Failed", true);
+          banner(d.message || d.error || T("setup.err.pw_failed"), true);
           return;
         }
         showStep(9);
@@ -719,7 +773,7 @@
     var u = ($("pppoeUser").value || "").trim();
     var p = $("pppoePass").value || "";
     if (!u || !p) {
-      banner("Enter ISP username and password.", true);
+      banner(T("setup.err.isp_missing"), true);
       return;
     }
     api("wan_pppoe", { body: formBody({ username: u, password: p }) })
@@ -729,7 +783,7 @@
           return;
         }
         $("pppoeBox").hidden = true;
-        $("wanCopy").textContent = "Connecting with ISP login…";
+        $("wanCopy").textContent = T("setup.wan.isp_connecting");
         dhcpTries = 0;
         pollWan();
       })
@@ -744,24 +798,24 @@
     var key2 = ($("wifiKey2") && $("wifiKey2").value) || "";
     var country = ($("wifiCountry").value || "").trim().toUpperCase();
     if (!ssid || ssid.length > 32) {
-      banner("Network name must be 1–32 characters.", true);
+      banner(T("setup.err.ssid_length"), true);
       return;
     }
     /* IEEE 802.11i / WPA2-Personal passphrase: 8–63 ASCII */
     if (key.length < 8 || key.length > 63) {
-      banner("Wi‑Fi password must be 8–63 characters (WPA2 standard).", true);
+      banner(T("setup.err.wifi_length"), true);
       return;
     }
     if (isFactoryPass(key)) {
-      banner("Choose a new Wi‑Fi password — not the factory default.", true);
+      banner(T("setup.err.wifi_factory"), true);
       return;
     }
     if (key !== key2) {
-      banner("Wi‑Fi passwords do not match.", true);
+      banner(T("setup.err.wifi_mismatch"), true);
       return;
     }
     if (country.length !== 2) {
-      banner("Enter a 2-letter country code (e.g. AU).", true);
+      banner(T("setup.err.country"), true);
       return;
     }
     $("btnWifi").disabled = true;
@@ -772,13 +826,13 @@
     var lab = $("wifiWaitLabel");
     if (wait) wait.hidden = false;
     if (bar) bar.value = 6;
-    if (lab) lab.textContent = "Saving Wi‑Fi… 0s";
+    if (lab) lab.textContent = T("setup.wifi.saving", { s: 0 });
     var wtick = 0;
     var advanced = false;
     var wiv = setInterval(function () {
       wtick += 1;
       if (bar) bar.value = Math.min(94, 6 + wtick * 10);
-      if (lab) lab.textContent = "Saving Wi‑Fi… " + wtick + "s";
+      if (lab) lab.textContent = T("setup.wifi.saving", { s: wtick });
     }, 1000);
     function finishWifi(ok, msg) {
       if (advanced) return;
@@ -786,11 +840,10 @@
       clearInterval(wiv);
       if (ok) {
         if (bar) bar.value = 100;
-        if (lab) lab.textContent = "Opening router password…";
+        if (lab) lab.textContent = T("setup.wifi.opening_password");
         showStep(8);
         banner(
-          msg ||
-            "Wi‑Fi saved. It applies when you finish Setup. Set a router password next.",
+          msg || T("setup.wifi.saved_next"),
           false
         );
         return;
@@ -815,7 +868,7 @@
         api("status")
           .then(function (st) {
             if (st && st.wifi_staged) {
-              finishWifi(true, "Wi-Fi saved. It applies when you finish Setup.");
+              finishWifi(true, T("setup.wifi.saved"));
               return;
             }
             finishWifi(false, friendlyError(e));
@@ -1069,7 +1122,7 @@
   }
 
   function startTlsWatch() {
-    tlsProgress(15, "Run the Terminal command (Linux box) or the downloaded file — nothing installs by itself. Watching…");
+    tlsProgress(15, T("setup.tls.watch_start"));
     var tries = 0;
     var inFlight = false;
     if (tlsWatchTimer) clearInterval(tlsWatchTimer);
@@ -1088,14 +1141,14 @@
         if (!ok) {
           inFlight = false;
           if (tries === 1) {
-            tlsProgress(35, "Still waiting for you to run the installer in a Terminal — the password prompt appears in the Terminal, never here.");
+            tlsProgress(35, T("setup.tls.watch_waiting"));
           } else if (tries >= 100) {
             stop();
             tlsProgress(40, tlsStalledText());
           }
           return;
         }
-        tlsProgress(90, "Secure connection detected — verifying…");
+        tlsProgress(90, T("setup.tls.detected"));
         verifyHttpsTrust(function (vok) {
           inFlight = false;
           if (!vok) {
@@ -1103,7 +1156,7 @@
             return;
           }
           stop();
-          tlsProgress(100, "Secure connection ready — opening the secure page…");
+          tlsProgress(100, T("setup.tls.ready"));
           if (location.protocol === "https:") {
             if (step === 1) finishTlsTrust({});
           } else {
@@ -1115,7 +1168,7 @@
   }
 
   function tlsStalledText() {
-    return "The browser does not trust the router yet. Finish the installer (it asks for your computer password in the Terminal or a system dialog), then restart the browser if it was open during the install. Or use Skip to continue without HTTPS.";
+    return T("setup.tls.stalled");
   }
 
   function finishTlsTrust(opts) {
@@ -1127,7 +1180,7 @@
     }
     if ($("btnTlsContinue")) $("btnTlsContinue").disabled = true;
     if ($("btnTlsSkip")) $("btnTlsSkip").disabled = true;
-    setTlsVerifyUi("Checking secure connection…", true);
+    setTlsVerifyUi(T("setup.tls.checking"), true);
     /* no-cors probe first: it resolves whenever the TLS handshake completes
        (CA installed) and rejects on cert/network failure. This detects
        "certificate not installed yet" and guides inline — the previous flow
@@ -1139,7 +1192,7 @@
         if ($("btnTlsSkip")) $("btnTlsSkip").disabled = false;
         var msg =
           location.protocol === "https:"
-            ? "Secure connection is not reachable right now. Wait a moment and tap I’ve finished again — or Skip for now and finish trust later."
+            ? T("setup.tls.unreachable")
             : tlsStalledText();
         setTlsVerifyUi(msg, false);
         if (msg) banner(msg, true);
@@ -1156,12 +1209,9 @@
           if ($("btnTlsContinue")) $("btnTlsContinue").disabled = false;
           if ($("btnTlsSkip")) $("btnTlsSkip").disabled = false;
           if (detail.luci) {
-            setTlsVerifyUi("Secure connection OK — continuing…", false);
+            setTlsVerifyUi(T("setup.tls.ok"), false);
           } else {
-            setTlsVerifyUi(
-              "Secure connection OK. If Router settings still warns later, fully quit the browser once.",
-              false
-            );
+            setTlsVerifyUi(T("setup.tls.ok_luci_warn"), false);
           }
           advancePastTls();
           return;
@@ -1173,16 +1223,14 @@
           already = false;
         }
         if (!already) {
-          setTlsVerifyUi("Reopening this page securely so the new certificate applies…", true);
+          setTlsVerifyUi(T("setup.tls.reopening"), true);
           softReloadAfterTrust();
           return;
         }
         if ($("btnTlsContinue")) $("btnTlsContinue").disabled = false;
         if ($("btnTlsSkip")) $("btnTlsSkip").disabled = false;
         enterTlsTrust();
-        var tip =
-          "Secure check still pending. Fully quit the browser (all windows), reopen this Setup page, " +
-          "then tap I’ve finished again — or Skip for now and finish trust later.";
+        var tip = T("setup.tls.pending");
         setTlsVerifyUi(tip, false);
         banner(tip, true);
         tlsProgress(40, tip);
@@ -1252,30 +1300,30 @@
     for (var i = 0; i < panels.length; i++) {
       panels[i].hidden = true;
     }
-    if ($("progressLabel")) $("progressLabel").textContent = opts.progressLabel || "Updating network";
+    if ($("progressLabel")) $("progressLabel").textContent = opts.progressLabel || T("setup.wait.updating_network");
     banner("");
     var box = $("stepRestart");
     if (box) box.hidden = false;
-    if ($("restartTitle")) $("restartTitle").textContent = opts.title || "Please wait";
+    if ($("restartTitle")) $("restartTitle").textContent = opts.title || T("setup.wait.title");
     if ($("restartCopy")) $("restartCopy").textContent = opts.copy || "";
     if ($("restartUrl")) {
       $("restartUrl").textContent = resumeIp ? resumeName + "  ·  " + resumeIp : resumeName || "";
     }
-    var progress = opts.progress || "Waiting";
+    var progress = opts.progress || T("setup.wait.waiting");
     if ($("restartState")) {
-      $("restartState").textContent = progress + "… 0s";
+      $("restartState").textContent = T("setup.wait.tick", { what: progress, s: 0 });
       $("restartState").className = "state busy";
     }
-    setWaitProgress(5, progress + "… 0s");
+    setWaitProgress(5, T("setup.wait.tick", { what: progress, s: 0 }));
     var navigated = false;
     function go() {
       if (navigated) return;
       navigated = true;
       if ($("restartState")) {
-        $("restartState").textContent = "Opening…";
+        $("restartState").textContent = T("setup.wait.opening");
         $("restartState").className = "state ok";
       }
-      setWaitProgress(100, "Opening…");
+      setWaitProgress(100, T("setup.wait.opening"));
       location.replace(resumeName);
     }
     /* C8: probe on this page's own protocol only — http:// probes from an
@@ -1292,7 +1340,7 @@
         return;
       }
       tick += 1;
-      var msg = progress + "… " + tick + "s";
+      var msg = T("setup.wait.tick", { what: progress, s: tick });
       setWaitProgress(Math.min(95, Math.round((tick / maxWait) * 100)), msg);
       if ($("restartState")) $("restartState").textContent = msg;
       if (tick >= maxWait && !timedOut) {
@@ -1301,15 +1349,15 @@
         timedOut = true;
         clearInterval(iv);
         if ($("restartState")) {
-          $("restartState").textContent = "Still waiting — reconnect to the router's network, then use the link below.";
+          $("restartState").textContent = T("setup.wait.still");
           $("restartState").className = "state busy";
         }
         if ($("restartCopy")) {
           var c = $("restartCopy");
-          c.textContent = (opts.copy ? opts.copy + " " : "") + "If this page does not move on, ";
+          c.textContent = (opts.copy ? opts.copy + " " : "") + T("setup.wait.stuck") + " ";
           var a = document.createElement("a");
           a.href = resumeName;
-          a.textContent = "open the next screen";
+          a.textContent = T("setup.wait.next_link");
           c.appendChild(a);
           c.appendChild(document.createTextNode("."));
         }
@@ -1340,23 +1388,19 @@
     var ssid = String(opts.ssid || "");
     var lanMoved = !!opts.lanMoved;
     var dest = safeDest(opts.dest || nodeStatusUrl("/"));
-    var copy = "The router is applying your settings now.";
+    var copy = T("setup.finish.applying");
     if (ssid) {
-      copy +=
-        " Join Wi‑Fi “" +
-        ssid +
-        "” with the password you chose. Turn Wi‑Fi off and on if it does not reconnect. Stay on this network — do not join another saved Wi‑Fi.";
+      copy += " " + T("setup.finish.join_wifi", { ssid: ssid });
     }
     if (lanMoved) {
-      copy +=
-        " Your computer will get a new address. If you are on Wi‑Fi, turn it off and on. If you use a cable, unplug it and plug it back in.";
+      copy += " " + T("setup.finish.lan_moved");
     }
-    copy += " This page opens the next screen when the router is ready.";
+    copy += " " + T("setup.finish.next");
     showSetupWait({
-      title: "Applying your settings",
+      title: T("setup.finish.title"),
       copy: copy,
-      progress: ssid ? "Waiting for " + ssid : "Waiting for the router",
-      progressLabel: "Applying settings",
+      progress: ssid ? T("setup.finish.waiting_ssid", { ssid: ssid }) : T("setup.finish.waiting_router"),
+      progressLabel: T("setup.finish.label"),
       resumeName: dest,
       lanIp: opts.lanIp || "",
       maxWait: 180,
@@ -1382,7 +1426,7 @@
           banner(d.message || d.error, true);
           return;
         }
-        banner(d.message || "LAN saved. It applies when you finish Setup.", false);
+        banner(d.message || T("setup.lan.saved"), false);
         api("status").then(enterWifi).catch(function () {
           enterWifi({ wifi_available: true });
         });
@@ -1517,6 +1561,16 @@
   })();
 
   bindPasswordReveals();
+  /* Language loaded later (or changed on the Choice page): redraw JS-made text. */
+  if (window.KnotsI18n && window.KnotsI18n.onChange) {
+    window.KnotsI18n.onChange(function () {
+      var btns = document.querySelectorAll("[data-pw-toggle]");
+      for (var i = 0; i < btns.length; i++) labelPwToggle(btns[i]);
+      if (!ON_PHONE && $("progressLabel") && $("stepRestart") && $("stepRestart").hidden) {
+        $("progressLabel").textContent = T("setup.progress", { n: step + 1, total: TOTAL });
+      }
+    });
+  }
   bindPasswordMatch("pw1", "pw2");
   bindPasswordMatch("wifiKey", "wifiKey2");
   bindPasswordMatch("quickPw1", "quickPw2");

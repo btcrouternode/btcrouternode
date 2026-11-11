@@ -44,6 +44,7 @@ PHASES = [
     "settings",
     "node",
     "luci",
+    "i18n",
     "ui",
     "reboot",
     "upgrade_keep",
@@ -831,6 +832,44 @@ def phase_node() -> None:
        not sw.get("ok") and "knots" in str(sw.get("error") or sw.get("message") or "").lower(), fail_detail(sw))
 
 
+LANGS = ("en", "es", "de", "fr", "zh-cn", "ja", "pt-br")
+
+
+def _i18n_ok(path: str, **kw: Any) -> tuple[bool, str]:
+    """A language catalogue on the router: JSON object with the menu keys."""
+    try:
+        code, data = R.get_json(path, **kw)
+    except ConnectionError as exc:
+        return False, str(exc)
+    return code == 200 and "nav.settings" in data and len(data) > 500, f"HTTP {code} keys={len(data)}"
+
+
+def phase_i18n() -> None:
+    """25.1.32.0: every page is translated (7 languages). The bundled English
+    (en.js) and every catalogue load from the RNode pages on HTTP (wait pages)
+    and HTTPS, and from Router settings (LuCI :8443, its own copy); the chosen
+    language reaches /ui-lang and LuCI."""
+    try:
+        code, text = R.get_text("/i18n/en.js", timeout=12)
+        ok("UAT-I18N-1", "English bundled with the pages (/i18n/en.js)", code == 200 and "KNOTS_I18N_EN" in text, f"HTTP {code}")
+    except ConnectionError as exc:
+        ok("UAT-I18N-1", "English bundled with the pages (/i18n/en.js)", False, str(exc))
+    for i, lang in enumerate(LANGS, start=2):
+        good_http, d1 = _i18n_ok(f"/i18n/{lang}.json", timeout=12)
+        good_https, d2 = _i18n_ok(f"/i18n/{lang}.json", https=True, timeout=12)
+        good_luci, d3 = _i18n_ok(f"/luci-static/resources/knots-i18n/{lang}.json", https=True, port=8443, timeout=12)
+        ok(f"UAT-I18N-{i}", f"{lang} catalogue on HTTP, HTTPS and Router settings",
+           good_http and good_https and good_luci, f"http {d1} · https {d2} · luci {d3}")
+    loc = R.settings("locale", {"confirm": "LANGUAGE", "lang": "de"})
+    try:
+        _c, ui = R.get_text("/ui-lang", https=True, timeout=10)
+    except ConnectionError:
+        ui = ""
+    ok("UAT-I18N-9", "Settings language → de reaches the pages", bool(loc.get("ok")) and ui.strip() == "de",
+       f"{loc.get('message') or loc.get('error') or ''} ui-lang={ui.strip()!r}")
+    R.settings("locale", {"confirm": "LANGUAGE", "lang": "en"})
+
+
 def phase_luci() -> None:
     try:
         code, text = R.get_text("/", port=8080, timeout=12)
@@ -1010,6 +1049,19 @@ def phase_upgrade_keep() -> None:
     net_before = (su_before.get("lan") or {}, su_before.get("zonename") or "")
     before = R.settings_status()
     prev = before.get("product_version") or (R.api_status().get("product_version") or "")
+    # R-CONF-KEEP (25.0.32.0 bug, 2026-11-10): a node setting the user changed
+    # in Settings survives a keep-settings upgrade (running firmware 25.1+).
+    def _conf_safe() -> dict:
+        try:
+            _c, j = R.get_json("/api/settings?action=conf")
+        except ConnectionError:
+            return {}
+        return (j.get("safe") or {}) if isinstance(j, dict) else {}
+    mm_prev = str(_conf_safe().get("maxmempool") or "300")
+    mm_mark = "457" if mm_prev != "457" else "458"
+    mm_saved = R.settings("conf_save", {"confirm": "SAVE", "maxmempool": mm_mark})
+    if mm_saved.get("ok"):
+        wait_node_running(True, timeout=180)
     out = _upload_upgrade(keep=True)
     ok("UAT-UK-1", "upgrade keep accepted", bool(out.get("ok")), out.get("message") or out.get("error") or "")
     time.sleep(5)
@@ -1057,6 +1109,12 @@ def phase_upgrade_keep() -> None:
     net_after = (su.get("lan") or {}, su.get("zonename") or "")
     ok("UAT-UK-7", "LAN / DHCP / timezone kept by keep-settings upgrade (U3)",
        bool(net_before[0]) and net_after == net_before, f"{net_before} → {net_after}")
+    mm_after = str(_conf_safe().get("maxmempool") or "")
+    ok("UAT-UK-9", "node setting kept by keep-settings upgrade (maxmempool)",
+       bool(mm_saved.get("ok")) and mm_after == mm_mark, f"set {mm_mark} → after upgrade {mm_after or '?'}")
+    if mm_after != mm_prev:
+        R.settings("conf_save", {"confirm": "SAVE", "maxmempool": mm_prev})
+        wait_node_running(True, timeout=180)
 
 
 def phase_release_sig() -> None:
@@ -1414,6 +1472,7 @@ HANDLERS = {
     "settings": phase_settings,
     "node": phase_node,
     "luci": phase_luci,
+    "i18n": phase_i18n,
     "ui": phase_ui,
     "reboot": phase_reboot,
     "upgrade_keep": phase_upgrade_keep,

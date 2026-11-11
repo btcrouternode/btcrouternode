@@ -1,9 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Knots UI i18n — U19. Loads /i18n/<lang>.json; missing keys fall back to English. */
+/* RNode UI i18n. English is bundled with the page (/i18n/en.js, generated from
+   en.json by build/gen-i18n-en.py) so a string is never shown as its key — not
+   even on the update / reset pages while the router reboots. Other languages
+   load from /i18n/<lang>.json; missing keys fall back to English. */
 (function (global) {
-  var dict = {};
-  var en = {};
+  var en = global.KNOTS_I18N_EN || {};
+  var dict = en;
   var lang = "en";
+  var listeners = [];
 
   function getStoredLang() {
     try {
@@ -47,10 +51,11 @@
 
   function apply(root) {
     root = root || document;
-    var nodes = root.querySelectorAll("[data-i18n]");
+    var nodes = root.querySelectorAll("[data-i18n], [data-i18n-html]");
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
-      var key = el.getAttribute("data-i18n");
+      var html = el.hasAttribute("data-i18n-html");
+      var key = el.getAttribute(html ? "data-i18n-html" : "data-i18n");
       if (!key) continue;
       /* No string in this language or English: keep the page's own text
          (and its markup) instead of showing the key. */
@@ -58,6 +63,9 @@
       var attr = el.getAttribute("data-i18n-attr");
       var val = t(key);
       if (attr) el.setAttribute(attr, val);
+      /* data-i18n-html: our own catalogue strings with simple markup
+         (<b>, <code>, <a>) — never data from the router or the user. */
+      else if (html) el.innerHTML = val;
       else el.textContent = val;
     }
     if (document.documentElement) {
@@ -70,7 +78,7 @@
     lang = code;
     setStoredLang(code);
     var chain = Promise.resolve();
-    if (!en || !Object.keys(en).length) {
+    if (!en || !Object.keys(en).length) {   /* page without en.js */
       chain = fetchJson("/i18n/en.json").then(function (d) {
         en = d || {};
       });
@@ -91,6 +99,9 @@
       })
       .then(function () {
         apply(document);
+        for (var i = 0; i < listeners.length; i++) {
+          try { listeners[i](lang); } catch (e) {}
+        }
         return lang;
       });
   }
@@ -110,6 +121,10 @@
 
   global.KnotsI18n = {
     t: t,
+    /* run fn after every language load (re-draw JS-made text) */
+    onChange: function (fn) {
+      listeners.push(fn);
+    },
     apply: apply,
     loadLang: loadLang,
     detectInitial: detectInitial,

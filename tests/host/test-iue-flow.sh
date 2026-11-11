@@ -206,7 +206,8 @@ awk '/^setup_client_on_wifi/,/^}$/' "$LIB" | grep -q carrier \
 grep -q 'setup_wifi_deauth_stations' "$LIB" || fail "cutover must deauth Wi-Fi stations"
 awk '/^	wifi\)/,/^		;;/' "$API" | grep -q setup_wifi_reload_now \
 	&& fail "wifi CGI must not reload radios in-process"
-grep -q 'Opening router password' "$JS" || fail "Wi-Fi save must advance to router password"
+grep -q 'setup.wifi.opening_password' "$JS" && grep -q '"setup.wifi.opening_password": "Opening router password' "$ROOT/files/www/knots/i18n/en.json" \
+	|| fail "Wi-Fi save must advance to router password"
 grep -q 'stepRestart.*hidden = true' "$JS" || fail "showStep must hide leftover LAN wait"
 grep -q 'Router password' "$HTML" || fail "Guided step 8 must be titled Router password"
 grep -q 'step=(\\d+)' "$JS" || fail "setup.js must resume a ?step= after LAN move"
@@ -422,5 +423,14 @@ awk '/var boot = Promise.resolve\(\);/,/bindLuciLink/' "$JS" | grep -q 'showStep
 	&& fail "boot must use welcomeUnlessMoved(), not showStep(0)"
 grep -q 'userLeftWelcome = true;' "$JS" || fail "Welcome Continue must mark userLeftWelcome"
 pass "boot never throws the user back to Welcome after Continue"
+
+# R-WIFI-COPY (25.0.32.0 bug, user guide review 2026-11-10): Guided Wi-Fi only
+# stages the change (applied at Finish); on Wi-Fi the page said saving would
+# disconnect. Copy must match the staged behaviour and be translatable.
+grep -q 'this device will disconnect' "$JS" && fail "R-WIFI-COPY: Wi-Fi step must not say saving disconnects"
+grep -qE '(KnotsI18n\.t|\bT)\("setup.wifi.body_onwifi"\)' "$JS" || fail "R-WIFI-COPY: on-Wi-Fi copy must use setup.wifi.body_onwifi"
+grep -q '"setup.wifi.body_onwifi": ".*finish Setup' "$ROOT/files/www/knots/i18n/en.json" \
+	|| fail "R-WIFI-COPY: en.json must say the change applies when Setup finishes"
+pass "R-WIFI-COPY on-Wi-Fi Guided copy: applies at Finish (translatable)"
 
 echo "ALL PASS: test-iue-flow"

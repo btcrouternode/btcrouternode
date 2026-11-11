@@ -227,6 +227,18 @@ setup_wan_apply_dhcp() {
 	ifup wan 2>/dev/null || /etc/init.d/network reload 2>/dev/null || true
 }
 
+# Quick Start Finish: keep an ISP login (PPPoE with username + password) the
+# user entered in the Quick Start pop-up; anything else becomes automatic
+# (DHCP). 25.0.32.0 always applied DHCP here and threw the login away.
+setup_wan_quickstart() {
+	if [ "$(uci -q get network.wan.proto 2>/dev/null)" = pppoe ] && \
+		[ -n "$(uci -q get network.wan.username 2>/dev/null)" ] && \
+		[ -n "$(uci -q get network.wan.password 2>/dev/null)" ]; then
+		return 0
+	fi
+	setup_wan_apply_dhcp
+}
+
 setup_wan_apply_pppoe() {
 	user=$1
 	pass=$2

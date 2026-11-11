@@ -270,7 +270,7 @@ case "$ACTION" in
 		require_lan_or_fail
 		impl=$(urldecode_soft "$(qval impl)")
 		case "$impl" in knots|core) ;; *)
-			fail_json "bad_impl" "Choose Bitcoin Knots or Bitcoin Core"
+			fail_json "bad_impl" "Bitcoin Core is the node software on this router"
 			;;
 		esac
 		nrc=0
@@ -332,7 +332,10 @@ case "$ACTION" in
 		rc=0
 		setup_set_root_password "$p1" || rc=$?
 		[ "$rc" -eq 0 ] || fail_json "passwd_failed" "Could not set admin password"
-		setup_wan_apply_dhcp
+		setup_wan_quickstart
+		# Quick Start = factory defaults: drop anything an abandoned Guided run
+		# staged (LAN range, SSID, node) before staging its own Wi-Fi + node.
+		setup_pending_clear
 		if setup_wifi_available; then
 			wcc=$(tr -d '\r\n' </etc/knots/wifi-country 2>/dev/null)
 			setup_wifi_stage rnode "$wkey" "${wcc:-$FACTORY_WIFI_COUNTRY}" || \

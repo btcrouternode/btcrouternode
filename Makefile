@@ -204,6 +204,7 @@ test-host:
 	$(ROOT)/tests/host/test-cgi-origin.sh
 	$(ROOT)/tests/host/test-cgi-auth.sh
 	$(ROOT)/tests/host/test-bitcoin-conf-raw.sh
+	$(ROOT)/tests/host/test-conf-upgrade-keep.sh
 	$(ROOT)/tests/host/test-input-validation.sh
 	$(ROOT)/tests/host/test-factory-reset-baseline.sh
 	$(ROOT)/tests/host/test-node-op-lock.sh
@@ -217,6 +218,8 @@ test-host:
 	$(ROOT)/tests/host/test-progress-steps.sh
 	$(ROOT)/tests/host/test-node-op-result.sh
 	$(ROOT)/tests/host/test-setup-finish.sh
+	$(ROOT)/tests/host/test-setup-timezone.sh
+	$(ROOT)/tests/host/test-i18n.sh
 	$(ROOT)/tests/host/test-d2-host.sh
 	$(ROOT)/tests/host/test-nginx-apply.sh
 	$(ROOT)/tests/host/test-flash-tools.sh

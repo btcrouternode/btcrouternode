@@ -4,6 +4,20 @@
   var PW = window.KnotsProgressWait;
   if (!PW) return;
 
+  function T(k, v) { return window.KnotsI18n ? window.KnotsI18n.t(k, v) : k; }
+  /* Text drawn once is drawn again when the language loads (progress-wait). */
+  function draw(id, fn) {
+    if (PW.draw) {
+      PW.draw(id, fn);
+      return;
+    }
+    var el = PW.$(id);
+    if (el) fn(el);
+  }
+  function lanDrop() {
+    return PW.lanDrop ? PW.lanDrop() : PW.LAN_DROP || "";
+  }
+
   /* HTTPS cannot poll http://rnode.local (mixed content) and after -n the
      new CA makes same-origin HTTPS probes fail. Stay on HTTP. */
   if (location.protocol === "https:") {
@@ -11,10 +25,10 @@
     return;
   }
 
-  var UPGRADE_TITLE = "Firmware Update in Progress";
-  var REBOOT_TITLE = "Firmware Upgrade Finalising Router Rebooting";
-  var REBOOT_DETAIL =
-    "Router rebooting — Do NOT power cycle. Waiting for the appliance to come back…";
+  /* Functions: read in the current language each time the page redraws. */
+  function UPGRADE_TITLE() { return T("upgrade.title"); }
+  function REBOOT_TITLE() { return T("upgrade.reboot_title"); }
+  function REBOOT_DETAIL() { return T("upgrade.reboot_detail"); }
 
   var params = new URLSearchParams(location.search || "");
   var st = PW.readState("knotsUpgradeWait");
@@ -77,10 +91,11 @@
   /* Alive is not enough — open dest only when that page itself works. */
   function redirectWhenReady(kind, extra) {
     extra = extra || {};
-    if (PW.$("waitHint")) {
-      PW.$("waitHint").textContent =
-        "Looking for http://" + (window.KnotsIue ? window.KnotsIue.host() : "rnode.local") + " — opening the working page when it is ready…";
-    }
+    draw("waitHint", function (el) {
+      el.textContent = T("upgrade.looking", {
+        url: "http://" + (window.KnotsIue ? window.KnotsIue.host() : "rnode.local")
+      });
+    });
     if (typeof PW.handoffWhenReady !== "function") {
       return;
     }
@@ -92,9 +107,11 @@
       expectedMs: extra.expectedMs,
       onWatchTick: function (ctx) {
         if (ctx && ctx.sawDown && PW.showLinkDown) {
-          PW.showLinkDown(
-            "Waiting for http://" + (window.KnotsIue ? window.KnotsIue.host() : "rnode.local") + " to come back. Confirming the page is ready."
-          );
+          PW.showLinkDown(function () {
+            return T("upgrade.waiting_back", {
+              url: "http://" + (window.KnotsIue ? window.KnotsIue.host() : "rnode.local")
+            });
+          });
         }
       },
       onReady: function (dest) {
@@ -104,20 +121,15 @@
   }
 
   function applyKeepCopy() {
-    var copy = PW.$("waitCopy");
-    var hint = PW.$("waitHint");
-    if (copy) {
-      copy.innerHTML = keepConfig
-        ? "Keep this page open. The Bitcoin node is stopped cleanly, then the appliance firmware is installed and the router reboots. Router settings are <strong>kept</strong>. The blockchain on the M.2 is <strong>not</strong> wiped."
-        : "Keep this page open. The Bitcoin node is stopped cleanly, then the appliance firmware is installed and the router reboots. Router settings are <strong>reset</strong> to factory defaults (Setup will run again). The blockchain on the M.2 is <strong>not</strong> wiped.";
-    }
-    if (hint) {
-      hint.textContent = keepConfig
-        ? "When this finishes, Node Status opens automatically. " +
-          (PW.LAN_DROP || "")
-        : "When this finishes, first-run Setup opens automatically. " +
-          (PW.LAN_DROP || "");
-    }
+    /* Our own catalogue strings (simple <strong> markup only). */
+    draw("waitCopy", function (copy) {
+      copy.innerHTML = keepConfig ? T("upgrade.copy_keep") : T("upgrade.copy_reset");
+    });
+    draw("waitHint", function (hint) {
+      hint.textContent =
+        (keepConfig ? T("upgrade.hint_keep") : T("upgrade.hint_reset")) +
+        " " + lanDrop();
+    });
   }
 
   function clearUpgradeUi() {
@@ -140,28 +152,30 @@
 
   /* Show the failed message + way back instead of waiting forever. */
   function showUpgradeFailed(upg) {
-    var detail =
-      (upg && upg.detail) || "The firmware upgrade failed on the router.";
-    if (PW.$("waitTitle")) PW.$("waitTitle").textContent = "Firmware Update Failed";
-    if (PW.$("waitWarn")) {
-      PW.$("waitWarn").textContent =
-        "No upgrade was applied — the router is still running the previous firmware.";
+    /* upg.detail comes from the router (not translated). */
+    function detail() {
+      return (upg && upg.detail) || T("upgrade.failed_detail");
     }
+    draw("waitTitle", function (el) {
+      el.textContent = T("upgrade.failed_title");
+    });
+    draw("waitWarn", function (el) {
+      el.textContent = T("upgrade.failed_warn");
+    });
     PW.setProgress(
-      { title: "Firmware Update Failed", labelId: "waitProgressLabel" },
+      { title: T("upgrade.failed_title"), labelId: "waitProgressLabel" },
       100,
-      detail,
+      detail(),
       false
     );
-    var hint = PW.$("waitHint");
-    if (hint) {
-      hint.textContent = detail + " ";
+    draw("waitHint", function (hint) {
+      hint.textContent = detail() + " ";
       var a = document.createElement("a");
       a.href = destAbsolute("/settings.html");
-      a.textContent = "Return to Settings";
+      a.textContent = T("upgrade.return_settings");
       hint.appendChild(a);
       hint.appendChild(document.createTextNode("."));
-    }
+    });
   }
 
   function finishKind(setupStatus) {
@@ -197,12 +211,12 @@
       stepKind: keepConfig ? "upgradeKeep" : "upgrade",
       rebootTitle: REBOOT_TITLE,
       rebootDetail: REBOOT_DETAIL,
-      finishingDetail: "Update complete — opening…",
+      finishingDetail: function () { return T("upgrade.finishing"); },
       headingId: "waitTitle",
       warnId: "waitWarn",
-      startingDetail: keepConfig
-        ? "Installing firmware (keeping settings), then rebooting…"
-        : "Installing firmware (resetting settings), then rebooting…",
+      startingDetail: function () {
+        return keepConfig ? T("upgrade.starting_keep") : T("upgrade.starting_reset");
+      },
       probeUrl: probeUrl,
       probeDelayMs: 5000,
       /* After this much downtime, keep this page and explain the LAN drop. */
@@ -236,19 +250,20 @@
           showUpgradeFailed(failed);
           return;
         }
-        function openDest(kind, destLabel, ver) {
-          if (PW.$("waitHint")) {
-            PW.$("waitHint").textContent = ver
-              ? "Update complete — " + ver + ". Opening " + destLabel + "…"
-              : "Opening " + destLabel + "…";
-          }
+        /* destKey: wait.dest.setup / wait.dest.status */
+        function openDest(kind, destKey, ver) {
+          draw("waitHint", function (el) {
+            el.textContent = ver
+              ? T("upgrade.done_opening", { version: ver, dest: T(destKey) })
+              : T("upgrade.opening", { dest: T(destKey) });
+          });
           PW.setProgress(
-            { title: UPGRADE_TITLE, labelId: "waitProgressLabel" },
+            { title: UPGRADE_TITLE(), labelId: "waitProgressLabel" },
             100,
-            "Opening " + destLabel + "…",
+            T("upgrade.opening", { dest: T(destKey) }),
             false
           );
-          if (PW.$("waitTitle")) PW.$("waitTitle").textContent = UPGRADE_TITLE;
+          if (PW.$("waitTitle")) PW.$("waitTitle").textContent = UPGRADE_TITLE();
           redirectWhenReady(kind, {
             forceFinished: true,
             requireDown: false,
@@ -258,11 +273,11 @@
           });
         }
         if (!keepConfig) {
-          openDest("upgrade", "Setup", "");
+          openDest("upgrade", "wait.dest.setup", "");
           return;
         }
         var ver = (d && d.product_version) || prevVer || "";
-        openDest("upgradeKeep", "Node Status", ver);
+        openDest("upgradeKeep", "wait.dest.status", ver);
       }
     });
 
@@ -300,10 +315,9 @@
           }).catch(function () {
             /* ignore */
           });
-          if (PW.$("waitHint")) {
-            PW.$("waitHint").textContent =
-              "Upgrade stalled — retrying sysupgrade on the router…";
-          }
+          draw("waitHint", function (el) {
+            el.textContent = T("upgrade.stalled");
+          });
         })
         .catch(function () {
           /* offline */
@@ -395,9 +409,9 @@
     }
 
     PW.setProgress(
-      { title: UPGRADE_TITLE, labelId: "waitProgressLabel" },
+      { title: UPGRADE_TITLE(), labelId: "waitProgressLabel" },
       0,
-      "No firmware update in progress. Use Settings → Appliance upgrade.",
+      T("upgrade.idle"),
       false
     );
   }).catch(function () {

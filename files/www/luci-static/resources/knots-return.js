@@ -10,6 +10,64 @@
   }
   /* Server-side session destroy + redirect (see node_dashboard.uc). */
   var EXIT_HREF = "/cgi-bin/luci/admin/node-dashboard";
+
+  /* Strings: the RNode catalogue copied here by ui-ports.sh (uhttpd has no
+     /i18n/). English is built in so LuCI never waits on it; the page's
+     language (LuCI sets <html lang>, same as the RNode pages) is fetched
+     once and the links re-labelled. */
+  var I18N_BASE = "/luci-static/resources/knots-i18n/";
+  var SUPPORTED = ["en", "es", "de", "fr", "zh-cn", "ja", "pt-br"];
+  var EN = {
+    "luci.return.link": "\u2190 Node Dashboard",
+    "luci.return.title": "Log out of router settings and open Node Status",
+    "luci.return.bar": "Router settings (LuCI)"
+  };
+  var dict = {};
+  function T(k) {
+    var v = dict[k];
+    return v != null && v !== "" ? v : EN[k] || k;
+  }
+  function langCode(c) {
+    c = String(c || "").toLowerCase().replace(/_/g, "-");
+    if (!c || c === "auto") return "";
+    if (c.indexOf("zh") === 0) return "zh-cn";
+    if (c.indexOf("pt") === 0) return "pt-br";
+    c = c.split("-")[0];
+    return SUPPORTED.indexOf(c) >= 0 ? c : "";
+  }
+  function loadLang() {
+    var code =
+      langCode(document.documentElement && document.documentElement.getAttribute("lang")) ||
+      langCode(navigator.language) ||
+      "en";
+    if (code === "en" || !window.fetch) return;
+    fetch(I18N_BASE + code + ".json")
+      .then(function (r) {
+        if (!r.ok) throw new Error("http " + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        dict = d || {};
+        relabel();
+      })
+      .catch(function () {
+        /* English stays */
+      });
+  }
+  function relabel() {
+    var a = document.querySelector("#" + LOGIN_ID + " a");
+    if (a) a.textContent = T("luci.return.link");
+    var bar = document.getElementById(BAR_ID);
+    if (bar) {
+      var link = bar.querySelector("a");
+      if (link) {
+        link.textContent = T("luci.return.link");
+        link.title = T("luci.return.title");
+      }
+      var span = bar.querySelector("span");
+      if (span) span.textContent = T("luci.return.bar");
+    }
+  }
   var LOGIN_ID = "knots-login-return";
   var BAR_ID = "knots-return-bar";
 
@@ -38,7 +96,7 @@
       var a = document.createElement("a");
       /* Not logged in yet — go straight to Node UI */
       a.href = nodeDashboardHref();
-      a.textContent = "\u2190 Node Dashboard";
+      a.textContent = T("luci.return.link");
       el.appendChild(a);
       modal.parentNode.insertBefore(el, modal.nextSibling);
     }
@@ -57,11 +115,14 @@
     var bar = document.createElement("div");
     bar.id = BAR_ID;
     bar.setAttribute("role", "navigation");
-    bar.innerHTML =
-      '<a href="' +
-      EXIT_HREF +
-      '" title="Log out of router settings and open Node Status">\u2190 Node Dashboard</a>' +
-      "<span>Router settings (LuCI)</span>";
+    var link = document.createElement("a");
+    link.href = EXIT_HREF;
+    link.title = T("luci.return.title");
+    link.textContent = T("luci.return.link");
+    var span = document.createElement("span");
+    span.textContent = T("luci.return.bar");
+    bar.appendChild(link);
+    bar.appendChild(span);
     document.body.insertBefore(bar, document.body.firstChild);
   }
 
@@ -75,5 +136,6 @@
   } else {
     paint();
   }
+  loadLang();
   setInterval(paint, 500);
 })();

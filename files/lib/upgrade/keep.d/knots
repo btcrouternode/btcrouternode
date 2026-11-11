@@ -31,6 +31,11 @@
 /etc/knots/wifi.key
 # P1 per-device factory secret mirror (primary copy: U-Boot env knots_secret)
 /etc/knots/factory-secret
+# the user's node settings (Settings → Bitcoin node configuration); image-sync.sh
+# rebuilds it from the new image's file with these settings applied
+/srv/lxc/knots/rootfs/etc/bitcoin/bitcoin.conf
+# the image's own bitcoin.conf it came from (tells settings from defaults)
+/etc/knots/bitcoin.conf.image
 # Deliberately NOT kept (stale operational markers):
 #   /etc/knots/factory-reset-pending — would force /reset.html after the upgrade
 #   /etc/knots/setup-lan-newip — stale deferred LAN-IP reboot state

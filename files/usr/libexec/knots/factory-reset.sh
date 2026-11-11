@@ -17,7 +17,7 @@ while [ $# -gt 0 ]; do
 	case "$1" in
 		--confirm) CONFIRM="$2"; shift ;;
 		--wipe-storage|--confirm-wipe)
-			echo "refusing: on-device M.2 wipe retired (S7 / N3)" >&2
+			echo "refusing: the blockchain drive (M.2) is never erased on the router" >&2
 			exit 1
 			;;
 		--no-reboot) REBOOT=0 ;;

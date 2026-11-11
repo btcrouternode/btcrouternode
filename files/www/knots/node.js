@@ -1,6 +1,28 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 (function () {
+  function T(k, v) { return window.KnotsI18n ? window.KnotsI18n.t(k, v) : k; }
+  /* T(k) when the catalogue has k, else null (server text is the fallback). */
+  function Tk(k, v) { var s = T(k, v); return s === k ? null : s; }
+
   var walletPresent = false;
+
+  function implName(impl) {
+    return impl === "core" ? "Bitcoin Core" : impl;
+  }
+
+  /* /api/node error reply → catalogue text by error code, else the router's text */
+  function apiErr(d, fallbackKey) {
+    var code = d && d.error;
+    return (code && Tk("api.node." + code)) || (d && (d.message || d.error)) || T(fallbackKey);
+  }
+
+  /* Verdict of a detached install / rollback (status.last_op). The router's
+     reason for a failure is technical English: shown after our own text. */
+  function opVerdict(op, r) {
+    if (r.state === "ok") return Tk("nodesw.op." + op + ".ok") || T("nodesw.op.done");
+    var head = Tk("nodesw.op." + op + ".failed") || T("nodesw.op.failed");
+    return r.message ? head + " " + T("nodesw.op.details", { text: r.message }) : head;
+  }
 
   function $(id) {
     return document.getElementById(id);
@@ -11,9 +33,7 @@
       try {
         return JSON.parse(t);
       } catch (e) {
-        throw new Error(
-          "Node API returned non-JSON (HTTP " + r.status + "). Check /api/node CGI."
-        );
+        throw new Error(T("nodesw.err.non_json", { status: r.status }));
       }
     });
   }
@@ -39,7 +59,7 @@
     var user = ($(userId).value || "").trim();
     var pass = $(passId).value || "";
     if (!user || !pass) {
-      banner("Router username and password required.", true);
+      banner(T("nodesw.auth.required"), true);
       return null;
     }
     return { user: user, pass: pass };
@@ -81,8 +101,8 @@
     if (walletPresent) {
       box.hidden = false;
       names.textContent = d.wallets
-        ? "Wallet(s) found: " + d.wallets
-        : "A wallet directory is present on the shared datadir.";
+        ? T("nodesw.wallet.found", { names: d.wallets })
+        : T("nodesw.wallet.dir_present");
     } else {
       box.hidden = true;
       if ($("walletAck")) $("walletAck").checked = false;
@@ -96,10 +116,10 @@
     var btn = $("btnRollback" + (impl === "core" ? "Core" : "Knots"));
     if (!el || !btn) return;
     if (block.prev_available) {
-      el.textContent = block.prev_version || "available";
+      el.textContent = block.prev_version || T("nodesw.rollback.available");
       btn.disabled = false;
     } else {
-      el.textContent = "none";
+      el.textContent = T("nodesw.rollback.none");
       btn.disabled = true;
     }
   }
@@ -107,8 +127,8 @@
   /* Bitcoin Core is the only node software since build 120 (Knots dropped). */
   function render(d) {
     $("active").textContent = "Bitcoin Core";
-    $("coreVer").textContent = d.core && d.core.installed ? d.core.version : "not installed";
-    $("running").textContent = d.running ? "Yes" : "No";
+    $("coreVer").textContent = d.core && d.core.installed ? d.core.version : T("nodesw.not_installed");
+    $("running").textContent = d.running ? T("nodesw.yes") : T("nodesw.no");
     renderWalletWarn(d);
     renderPrev("core", d);
     if (window.KnotsBrand) window.KnotsBrand.apply("core");
@@ -124,7 +144,7 @@
         if (el) {
           var ver = d.product_version || "—";
           var bn = d.build_number || "";
-          el.textContent = bn ? ver + " · rev " + bn : ver;
+          el.textContent = bn ? T("nodesw.build_rev", { ver: ver, rev: bn }) : ver;
         }
         if (window.KnotsBrand && window.KnotsBrand.applyBuild) {
           window.KnotsBrand.applyBuild(d.product_version, d.build_number);
@@ -137,7 +157,7 @@
     return api("status")
       .then(function (d) {
         if (!d.ok) {
-          banner(d.message || d.error || "Status failed", true);
+          banner(apiErr(d, "nodesw.err.status_failed"), true);
           return;
         }
         render(d);
@@ -157,12 +177,12 @@
         var r = st && st.last_op;
         if (r && r.op === op && r.state && r.state !== "running") {
           render(st);
-          banner(r.message || (r.state === "ok" ? "Done." : "Failed."), r.state !== "ok");
+          banner(opVerdict(op, r), r.state !== "ok");
           if (done) done(r.state === "ok");
           return;
         }
         if (Date.now() - start > 900000) {
-          banner("This is taking longer than expected — check Node Status.", true);
+          banner(T("nodesw.op.slow"), true);
           if (done) done(false);
           return refresh();
         }
@@ -189,34 +209,37 @@
     var auth = authPair("authUser", "authPass");
     if (!auth) return;
     if (!file) {
-      banner("Choose an official aarch64 .tar.gz first.", true);
+      banner(T("nodesw.install.no_file"), true);
       return;
     }
     if (confirmTok !== "INSTALL") {
-      banner("Type INSTALL to confirm.", true);
+      banner(T("nodesw.type_word", { word: "INSTALL" }), true);
       return;
     }
     if (needWalletAck()) {
-      banner("Acknowledge the wallet backup warning before installing.", true);
+      banner(T("nodesw.install.wallet_ack"), true);
       return;
     }
     if (!/aarch64/i.test(file.name)) {
-      banner("Filename should contain aarch64 (official linux-gnu build).", true);
+      banner(T("nodesw.install.bad_name"), true);
       return;
     }
     if (
-      !confirmPopup("Install " + impl + " from " + file.name + "?", [
-        "Previous binaries (if any) are kept for rollback.",
-        "The blockchain is not wiped.",
-        "If this implementation is active, the node will restart."
+      !confirmPopup(T("nodesw.install.confirm_title", { name: implName(impl), file: file.name }), [
+        T("nodesw.install.confirm_keep"),
+        T("nodesw.confirm.chain"),
+        T("nodesw.confirm.restart")
       ])
     ) {
-      banner("Install cancelled.", false);
+      banner(T("nodesw.install.cancelled"), false);
       return;
     }
     $("btnInstall").disabled = true;
-    $("installHint").textContent = "Uploading " + file.name + " (" + Math.round(file.size / 1048576) + " MiB)…";
-    banner("Installing " + impl + " — this can take a few minutes…", false);
+    $("installHint").textContent = T("nodesw.install.uploading", {
+      file: file.name,
+      mib: Math.round(file.size / 1048576)
+    });
+    banner(T("nodesw.install.installing", { name: implName(impl) }), false);
     var q =
       "/api/node?action=install&impl=" +
       encodeURIComponent(impl) +
@@ -241,7 +264,7 @@
         $("installHint").textContent = "";
         if (!d.ok) {
           $("btnInstall").disabled = false;
-          banner(d.message || d.error || "Install failed", true);
+          banner(apiErr(d, "nodesw.install.failed"), true);
           return;
         }
         $("confirmInstall").value = "";
@@ -249,7 +272,7 @@
         $("authPass").value = "";
         if (fileInput) fileInput.value = "";
         if ($("walletAck")) $("walletAck").checked = false;
-        banner(d.message || "Installing…", false);
+        banner(T("nodesw.install.accepted"), false);
         return pollOp("install", function () {
           $("btnInstall").disabled = false;
         });
@@ -266,25 +289,25 @@
     var auth = authPair("authUser", "authPass");
     if (!auth) return;
     if (confirmTok !== "ROLLBACK") {
-      banner("Type ROLLBACK to confirm.", true);
+      banner(T("nodesw.type_word", { word: "ROLLBACK" }), true);
       return;
     }
     if (needWalletAck()) {
-      banner("Acknowledge the wallet backup warning before rollback.", true);
+      banner(T("nodesw.rollback.wallet_ack"), true);
       return;
     }
     if (
-      !confirmPopup("Rollback " + impl + " to the previous install?", [
-        "The blockchain is not wiped.",
-        "If this implementation is active, the node will restart."
+      !confirmPopup(T("nodesw.rollback.confirm_title", { name: implName(impl) }), [
+        T("nodesw.confirm.chain"),
+        T("nodesw.confirm.restart")
       ])
     ) {
-      banner("Rollback cancelled.", false);
+      banner(T("nodesw.rollback.cancelled"), false);
       return;
     }
     var btn = $("btnRollback" + (impl === "core" ? "Core" : "Knots"));
     if (btn) btn.disabled = true;
-    banner("Rolling back " + impl + "…", false);
+    banner(T("nodesw.rollback.rolling_back", { name: implName(impl) }), false);
     var body =
       "impl=" +
       encodeURIComponent(impl) +
@@ -295,13 +318,13 @@
       .then(function (d) {
         if (!d.ok) {
           if (btn) btn.disabled = false;
-          banner(d.message || d.error || "Rollback failed", true);
+          banner(apiErr(d, "nodesw.rollback.failed"), true);
           return;
         }
         $("confirmRollback").value = "";
         $("authPass").value = "";
         if ($("walletAck")) $("walletAck").checked = false;
-        banner(d.message || "Rolling back…", false);
+        banner(T("nodesw.rollback.accepted"), false);
         return pollOp("rollback", function () {
           if (btn) btn.disabled = false;
         });
@@ -315,6 +338,13 @@
   $("btnRollbackCore").onclick = function () {
     doRollback("core");
   };
+
+  /* Language loaded or changed: re-draw the values this script wrote. */
+  if (window.KnotsI18n && window.KnotsI18n.onChange) {
+    window.KnotsI18n.onChange(function () {
+      refresh();
+    });
+  }
 
   refresh();
   setInterval(refresh, 20000);

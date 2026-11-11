@@ -4,6 +4,17 @@
   var PW = window.KnotsProgressWait;
   if (!PW) return;
 
+  function T(k, v) { return window.KnotsI18n ? window.KnotsI18n.t(k, v) : k; }
+  /* Text drawn once is drawn again when the language loads (progress-wait). */
+  function draw(id, fn) {
+    if (PW.draw) {
+      PW.draw(id, fn);
+      return;
+    }
+    var el = PW.$(id);
+    if (el) fn(el);
+  }
+
   if (location.protocol === "https:") {
     location.replace("http://" + (window.KnotsIue ? window.KnotsIue.host() : "rnode.local") + location.pathname + location.search);
     return;
@@ -39,10 +50,9 @@
   }
 
   function openWhenReady() {
-    if (PW.$("waitHint")) {
-      PW.$("waitHint").textContent =
-        "Looking for http://" + routerHost() + " — opening Setup when it is ready…";
-    }
+    draw("waitHint", function (el) {
+      el.textContent = T("reset.looking", { url: "http://" + routerHost() });
+    });
     if (typeof PW.handoffWhenReady !== "function") {
       window.location.replace(namedUrl("/setup.html"));
       return;
@@ -52,9 +62,9 @@
       forceFinished: true,
       onWatchTick: function (ctx) {
         if (ctx && ctx.sawDown && PW.showLinkDown) {
-          PW.showLinkDown(
-            "Waiting for http://" + routerHost() + " to come back. Opening Setup."
-          );
+          PW.showLinkDown(function () {
+            return T("reset.waiting_back", { url: "http://" + routerHost() });
+          });
         }
       },
       onReady: function (dest) {
@@ -64,17 +74,18 @@
   }
 
   function showResetIdle() {
-    if (PW.$("waitTitle")) PW.$("waitTitle").textContent = "Factory Reset";
+    draw("waitTitle", function (el) {
+      el.textContent = T("reset.idle_title");
+    });
     PW.setProgress(
-      { title: "Factory Reset" },
+      { title: T("reset.idle_title") },
       0,
-      "No factory reset in progress. Use Settings → Reset to factory defaults.",
+      T("reset.idle"),
       false
     );
-    if (PW.$("waitHint")) {
-      PW.$("waitHint").textContent =
-        "This page stays here so it does not bounce you to a broken Settings or HTTPS page.";
-    }
+    draw("waitHint", function (el) {
+      el.textContent = T("reset.idle_hint");
+    });
   }
 
   function leaveIdle(d) {
@@ -97,17 +108,17 @@
       storageKey: "knotsFactoryResetWait",
       expectedSeconds: exp,
       startedAt: startedAt,
-      title: "Factory Reset in Progress",
+      title: function () { return T("reset.title"); },
       stepKind: "reset",
-      startingDetail: "Stopping BTC Node…",
+      startingDetail: function () { return T("reset.starting"); },
       probeUrl: "/api/setup?action=status",
       probeDelayMs: 3000,
       finishMsAfterDown: 15000,
       onDownLinger: function () {
         if (PW.showLinkDown) {
-          PW.showLinkDown(
-            "Factory reset is rebooting the router."
-          );
+          PW.showLinkDown(function () {
+            return T("reset.rebooting");
+          });
         }
       },
       isLive: function (d) {
@@ -130,9 +141,9 @@
       },
       onFinish: function () {
         PW.clearState("knotsFactoryResetWait");
-        if (PW.$("waitHint")) {
-          PW.$("waitHint").textContent = "Factory reset finished — opening Setup…";
-        }
+        draw("waitHint", function (el) {
+          el.textContent = T("reset.finished");
+        });
         fetch("/api/setup?action=factory_reset_clear", {
           method: "POST",
           cache: "no-store"
@@ -182,9 +193,9 @@
         start(expected, Date.now());
       } else {
         PW.setProgress(
-          { title: "Factory Reset in Progress" },
+          { title: T("reset.title") },
           0,
-          "Waiting for the router…",
+          T("reset.waiting_router"),
           true
         );
         start(expected, Date.now());

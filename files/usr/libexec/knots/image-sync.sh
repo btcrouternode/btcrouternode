@@ -31,6 +31,32 @@ image_sync_needed() {
 	return 1
 }
 
+ROM_CONF=${ROM_CONF:-/rom/srv/lxc/knots/rootfs/etc/bitcoin/bitcoin.conf}
+CUR_CONF=${CUR_CONF:-/srv/lxc/knots/rootfs/etc/bitcoin/bitcoin.conf}
+# copy of the image's own bitcoin.conf: tells the user's settings apart from
+# the defaults at the next upgrade (kept by keep.d)
+IMG_CONF=${IMG_CONF:-/etc/knots/bitcoin.conf.image}
+
+image_sync_bitcoin_conf() {
+	[ -f "$ROM_CONF" ] && [ -f "$CUR_CONF" ] || return 0
+	if cmp -s "$ROM_CONF" "$CUR_CONF"; then
+		cp "$ROM_CONF" "$IMG_CONF" 2>/dev/null || true
+		return 0
+	fi
+	# shellcheck disable=SC1091
+	. "${KNOTS_LIBEXEC:-/usr/libexec/knots}/bitcoin-conf-lib.sh" || return 0
+	t=$(mktemp) || return 0
+	if conf_upgrade_merge "$ROM_CONF" "$CUR_CONF" "$IMG_CONF" >"$t" && conf_assert_product_keys "$t"; then
+		cat "$t" >"$CUR_CONF"
+		logger -t knots-image-sync "bitcoin.conf: your settings kept, product keys from the new image"
+	else
+		cat "$ROM_CONF" >"$CUR_CONF"
+		logger -t knots-image-sync "bitcoin.conf: could not merge your settings — image defaults used"
+	fi
+	rm -f "$t"
+	cp "$ROM_CONF" "$IMG_CONF" 2>/dev/null || true
+}
+
 image_sync_from_rom() {
 	image_sync_needed || return 0
 	rom=$(tr -d '\r\n' <"$ROM_BN")
@@ -80,6 +106,12 @@ image_sync_from_rom() {
 	fi
 	chmod 755 /usr/libexec/knots/*.sh 2>/dev/null || true
 	chmod 755 /usr/libexec/knots/wallet-cgi/api/* 2>/dev/null || true
+
+	# The user's node settings survive a keep-settings upgrade: keep.d keeps
+	# bitcoin.conf, here it is rebuilt from the new image's file with the
+	# user's own (non-protected) settings applied. Product keys always come
+	# from the image; if anything is off, the image's file is used as is.
+	image_sync_bitcoin_conf
 
 	# S7 — remove retired on-device wipe surfaces shadowed by overlay (F86/F87)
 	rm -f /usr/libexec/knots/storage-wipe.sh \

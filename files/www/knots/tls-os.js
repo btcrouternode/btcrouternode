@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Shared OS detection + primary trust CTA for Setup / tls.html (N13 / U17) */
 (function (global) {
+  function T(k, v) { return global.KnotsI18n ? global.KnotsI18n.t(k, v) : k; }
+
   function detectOs() {
     var ua = navigator.userAgent || "";
     var plat = navigator.platform || "";
@@ -30,16 +32,11 @@
   function lanDropConfirmLines() {
     var os = isUbuntu() ? "Ubuntu" : "Linux";
     return [
-      os +
-        " will show Ethernet as disconnected when the router restarts. That is " +
-        os +
-        " NetworkManager, not a failed update.",
-      "Leave the cable plugged in.",
-      "If " +
-        os +
-        " turns LAN off, open Settings → Network and click the wired connection back on.",
-      "Turn on Connect automatically for that wired connection so it comes back after reboot.",
-      "Keep the progress tab open. Do not power-cycle the router."
+      T("tls.landrop.shows", { os: os }),
+      T("tls.landrop.cable"),
+      T("tls.landrop.turn_on", { os: os }),
+      T("tls.landrop.auto"),
+      T("tls.landrop.keep_open")
     ];
   }
 
@@ -64,11 +61,10 @@
     if (!el || el.getAttribute("data-static") === "1") return;
     var br = detectBrowser();
     if (br === "firefox") {
-      el.innerHTML =
-        "<strong>Firefox download step:</strong> After you tap the orange button, look at the " +
-        "<strong>top of the Firefox window</strong> or the <strong>downloads arrow</strong>. " +
-        "You must click <strong>Allow</strong> or <strong>Save File</strong> — otherwise the file never downloads. " +
-        "Choose <strong>Save File</strong>, not “Open with”.";
+      /* Key on the element too, so a later language load keeps the Firefox tip. */
+      el.setAttribute("data-i18n-html", "tls.tip.firefox");
+      el.removeAttribute("data-i18n");
+      el.innerHTML = T("tls.tip.firefox");
     }
   }
 
@@ -78,8 +74,8 @@
         return {
           href: "/tls/install-windows.bat",
           download: "install-bitcoin-node-trust.bat",
-          label: "Enable Secure Connection",
-          hint: "If the browser asks Allow / Save / Keep (Firefox often does), click that first. Then open the file from Downloads and approve Windows prompts."
+          label: T("tls.cta"),
+          hint: T("tls.hint.windows")
         };
       case "mac":
         /* Script Editor link (owner test 2026-10-25: smooth; the .terminal
@@ -87,8 +83,8 @@
         return {
           href: macScriptEditorHref(trustHost()),
           download: null,
-          label: "Enable Secure Connection",
-          hint: "Click Allow, then the ▶ Run button in Script Editor, then type your Mac password."
+          label: T("tls.cta"),
+          hint: T("tls.hint.mac")
         };
       case "linux":
         /* Ubuntu / Debian / Mint package: App Center → Install → password
@@ -96,8 +92,8 @@
         return {
           href: "/tls/rnode-secure-connection.deb",
           download: "rnode-secure-connection.deb",
-          label: "Enable Secure Connection",
-          hint: "Open the downloaded file — App Center opens: Install, then your password. The secure page reopens by itself."
+          label: T("tls.cta"),
+          hint: T("tls.hint.linux")
         };
       default:
         return primaryAction("windows");
@@ -230,9 +226,16 @@
         var btn = document.createElement("button");
         btn.type = "button";
         btn.className = "btn btn-copy";
-        btn.textContent = "Copy";
+        btn.textContent = T("tls.copy");
         row.appendChild(btn);
       }
+    }
+  }
+
+  function relabelCopyButtons(scope) {
+    var btns = (scope || document).querySelectorAll(".btn-copy");
+    for (var i = 0; i < btns.length; i++) {
+      if (!btns[i].classList.contains("copied")) btns[i].textContent = T("tls.copy");
     }
   }
 
@@ -264,24 +267,22 @@
         }
         if (!text) return;
 
-        var label = btn.getAttribute("data-copy-label") || "Copy";
-        if (label === "Copied" || /Ctrl\+C|Select/i.test(label)) label = "Copy";
         btn.setAttribute("data-copy-label", "Copy");
 
         copyText(text).then(
           function () {
-            btn.textContent = "Copied";
+            btn.textContent = T("tls.copied");
             btn.classList.add("copied");
             setTimeout(function () {
-              btn.textContent = "Copy";
+              btn.textContent = T("tls.copy");
               btn.classList.remove("copied");
             }, 1600);
           },
           function () {
             selectCopyableText(row);
-            btn.textContent = "Selected — Ctrl+C / ⌘C";
+            btn.textContent = T("tls.selected");
             setTimeout(function () {
-              btn.textContent = "Copy";
+              btn.textContent = T("tls.copy");
             }, 2800);
           }
         );
@@ -291,6 +292,8 @@
   }
 
   installCopyDelegation();
+
+  var lastOs = "";   /* OS panel on screen (redrawn on language load) */
 
   function bindOsTabs(opts) {
     opts = opts || {};
@@ -317,6 +320,7 @@
           bindCopyButtons(panels[j]);
         }
       }
+      lastOs = os;
       if (labelEl) labelEl.textContent = labels[os] || os;
       updatePrimaryCta(os);
       if (typeof opts.onShow === "function") opts.onShow(os);
@@ -327,6 +331,15 @@
     show(os);
     updateDownloadTip();
     bindCopyButtons(document);
+    /* Language loaded after the panel was drawn: redraw the JS-made text
+       (button label, hint, Copy buttons) — once per page. */
+    if (global.KnotsI18n && global.KnotsI18n.onChange && !bindOsTabs.__i18n) {
+      bindOsTabs.__i18n = true;
+      global.KnotsI18n.onChange(function () {
+        updatePrimaryCta(lastOs || detectOs());
+        relabelCopyButtons(document);
+      });
+    }
 
     if (detectedOnly) {
       if (tabRoot) tabRoot.hidden = true;

@@ -108,7 +108,7 @@ pass "C3 same-IP mask change flagged (lan_cfg=1) with the OLD mask for the hold 
 
 # --- C1 Quick Start order: everything validated before the first apply
 qs=$(awk '/^\tquickstart\)/,/^\t\t;;/' "$API")
-first_apply=$(printf '%s\n' "$qs" | grep -n 'setup_set_root_password\|^\t\tsetup_locale_apply\|setup_wan_apply_dhcp' | head -1 | cut -d: -f1)
+first_apply=$(printf '%s\n' "$qs" | grep -n 'setup_set_root_password\|^\t\tsetup_locale_apply\|setup_wan_apply_dhcp\|setup_wan_quickstart' | head -1 | cut -d: -f1)
 for v in 'setup_is_factory_password "$p1"' 'SETUP_LOCALE_CHECK_ONLY=1 setup_locale_apply' 'setup_wifi_validate rnode' 'setup_wifi_is_factory_key "$wkey"'; do
 	n=$(printf '%s\n' "$qs" | grep -nF "$v" | head -1 | cut -d: -f1)
 	[ -n "$n" ] && [ "$n" -lt "$first_apply" ] || fail "C1: '$v' must run before anything is applied"
@@ -119,6 +119,25 @@ grep -q 'setup_pending_clear' <<EOF || fail "Finish must clear the staging dir (
 $(awk '/^setup_finish_and_respond\(\)/,/^}/' "$API")
 EOF
 pass "C1 Quick Start validates all before applying; shared Finish clears pending; node not switched in CGI"
+
+# --- R-QS-PPPOE (25.0.32.0 bug, user guide review 2026-11-10): an ISP login
+# typed in the Quick Start pop-up was thrown away at Finish (always DHCP).
+wan() { : >"$W/uci.db"; for kv in "$@"; do echo "$kv" >>"$W/uci.db"; done; lib 'setup_wan_quickstart'; lib 'uci -q get network.wan.proto'; }
+[ "$(wan network.wan.proto=pppoe network.wan.username=isp-user network.wan.password=isp-pass)" = pppoe ] \
+	|| fail "R-QS-PPPOE: Quick Start Finish must keep a PPPoE login"
+[ "$(lib 'uci -q get network.wan.username')" = isp-user ] || fail "R-QS-PPPOE: PPPoE username must be kept"
+[ "$(wan network.wan.proto=pppoe network.wan.username=isp-user)" = dhcp ] || fail "R-QS-PPPOE: PPPoE without password → DHCP"
+[ "$(wan network.wan.proto=dhcp)" = dhcp ] || fail "R-QS-PPPOE: DHCP stays DHCP"
+printf '%s\n' "$qs" | grep -q 'setup_wan_apply_dhcp' && fail "R-QS-PPPOE: quickstart must not force DHCP"
+printf '%s\n' "$qs" | grep -q 'setup_wan_quickstart' || fail "R-QS-PPPOE: quickstart must use setup_wan_quickstart"
+# R-QS-STALE: an abandoned Guided run's staged LAN / SSID must not leak into Quick Start
+printf '%s\n' "$qs" | awk '/setup_pending_clear/{c=NR} /setup_wifi_stage rnode/{w=NR} END{exit !(c && w && c < w)}' \
+	|| fail "R-QS-STALE: quickstart must clear staged Guided values before staging its own"
+seed
+pend lan_ipaddr 10.9.9.1; pend lan_netmask 255.255.255.0; pend lan_dhcp_start 100; pend lan_dhcp_limit 101
+lib 'setup_pending_clear; setup_wifi_stage rnode Example-wifi-pass22 AU' || fail "R-QS-STALE: stage"
+[ -f "$W/pending/lan_ipaddr" ] && fail "R-QS-STALE: staged LAN address survived Quick Start"
+pass "R-QS-PPPOE Quick Start keeps an ISP login at Finish; R-QS-STALE abandoned Guided values cleared"
 
 # --- C3 cutover structure
 co=$(awk '/^setup_cutover_now\(\)/,/^}/' "$LIB")

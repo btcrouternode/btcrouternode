@@ -68,15 +68,18 @@ grep -q 'startReindexProgress' "$JS" || {
 grep -q 'nodeIsStopped' "$JS" || {
 	echo "FAIL: settings.js must refuse Start click unless stopped"; exit 1
 }
-grep -q 'Stop the Bitcoin node first' "$JS" || {
+# Text lives in the translation catalogue (25.1.32.0): the page uses the key,
+# en.json holds the English.
+EN="$(dirname "$JS")/i18n/en.json"
+grep -q 'settings.node.start.err_running' "$JS" && grep -q '"settings.node.start.err_running": "Stop the Bitcoin node first' "$EN" || {
 	echo "FAIL: settings.js must banner when Start clicked while running"; exit 1
 }
 grep -q 'reindex=1' "$JS" || { echo "FAIL: settings.js must POST reindex=1 when checked"; exit 1; }
 grep -q 'reindex_kind=' "$JS" || { echo "FAIL: settings.js must POST reindex_kind"; exit 1; }
-grep -q 'You chose: Repair chain database' "$JS" || {
+grep -q 'settings.node.start.confirm_body_reindex' "$JS" && grep -q 'You chose: Repair chain database' "$EN" || {
 	echo "FAIL: chainstate warning popup missing"; exit 1
 }
-grep -q 'You chose: Also rebuild the block index' "$JS" || {
+grep -q 'settings.node.start.confirm_body_full' "$JS" && grep -q 'You chose: Also rebuild the block index' "$EN" || {
 	echo "FAIL: full reindex warning popup missing"; exit 1
 }
 

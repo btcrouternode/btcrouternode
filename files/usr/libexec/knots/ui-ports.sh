@@ -60,6 +60,22 @@ if [ -f /www/luci-entry.html ]; then
 	log "LuCI :8080/ → pre-login chooser"
 fi
 
+# Page strings for the LuCI-side pages (luci-entry.html, knots-return.js).
+# uhttpd serves /www, where the Node UI's /i18n/ path does not exist, so keep
+# a copy of the catalogue next to LuCI's static files. Runs at boot and from
+# image-sync after an upgrade, so the copy follows the installed UI.
+I18N_SRC=/www/knots/i18n
+I18N_DST=/www/luci-static/resources/knots-i18n
+if [ -d "$I18N_SRC" ]; then
+	mkdir -p "$I18N_DST"
+	for f in "$I18N_SRC"/*.json "$I18N_SRC/en.js" /www/knots/i18n.js; do
+		if [ -f "$f" ]; then
+			cp -f "$f" "$I18N_DST/" || true
+		fi
+	done
+	log "LuCI pages ← UI strings ($I18N_DST)"
+fi
+
 # Remove broken Lua-era artifacts
 rm -f /usr/lib/lua/luci/view/knots_dashboard.htm 2>/dev/null || true
 rm -f /usr/share/luci/menu.d/knots-dashboard.json 2>/dev/null || true

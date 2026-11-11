@@ -5,7 +5,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <title>Router settings — login required</title>
+  <title data-i18n="luci.entry.page_title">Router settings — login required</title>
   <style>
     :root {
       --bg: #f7f4ef;
@@ -58,20 +58,24 @@
 </head>
 <body>
   <div class="card">
-    <h1>Router settings (LuCI)</h1>
-    <p class="secure">
+    <h1 data-i18n="luci.entry.title">Router settings (LuCI)</h1>
+    <p class="secure" data-i18n="luci.entry.secure">
       Admin login is required. This page is not LuCI — it only routes you to login
       or back to the Bitcoin node dashboard.
     </p>
-    <p>
+    <p data-i18n="luci.entry.mistake">
       If you opened this by mistake, return to the node status page (no router password needed there).
     </p>
     <div class="actions">
-      <a class="btn btn-primary" id="toNode" href="https://rnode.local/">← Back to Node Dashboard</a>
-      <a class="btn btn-secondary" id="toLuci" href="https://rnode.local:8443/cgi-bin/luci/">Continue to LuCI login</a>
+      <a class="btn btn-primary" id="toNode" href="https://rnode.local/" data-i18n="luci.entry.back">← Back to Node Dashboard</a>
+      <a class="btn btn-secondary" id="toLuci" href="https://rnode.local:8443/cgi-bin/luci/" data-i18n="luci.entry.continue">Continue to LuCI login</a>
     </div>
-    <p class="note">Default testing password is documented in the product guide (R13). WAN management stays blocked.</p>
+    <p class="note" data-i18n="luci.entry.note">Log in as root with the router password you chose in Setup. Router settings cannot be opened from the internet.</p>
   </div>
+  <!-- Page strings: ui-ports.sh copies the RNode catalogue here (uhttpd has
+       no /i18n/). Missing files just leave the English text above. -->
+  <script src="/luci-static/resources/knots-i18n/en.js"></script>
+  <script src="/luci-static/resources/knots-i18n/i18n.js"></script>
   <script>
     (function () {
       /* D2: keep the host the browser used (names / private IPv4). */
@@ -80,6 +84,47 @@
       if (a) a.href = "https://" + h + "/";
       var l = document.getElementById("toLuci");
       if (l) l.href = "https://" + h + ":8443/cgi-bin/luci/";
+    })();
+    (function () {
+      /* Language: the one chosen in Setup / Settings (/knots/ui-lang, written
+         next to the Node UI files), else the browser's. English is bundled
+         (en.js); another language is merged over it, then the page is
+         re-labelled. */
+      var BASE = "/luci-static/resources/knots-i18n/";
+      var SUPPORTED = ["en", "es", "de", "fr", "zh-cn", "ja", "pt-br"];
+      function norm(c) {
+        c = String(c || "").toLowerCase().replace(/_/g, "-").replace(/\s+/g, "");
+        if (!c || c === "auto") return "";
+        if (c.indexOf("zh") === 0) return "zh-cn";
+        if (c.indexOf("pt") === 0) return "pt-br";
+        c = c.split("-")[0];
+        return SUPPORTED.indexOf(c) >= 0 ? c : "";
+      }
+      if (!window.KnotsI18n || !window.KNOTS_I18N_EN || !window.fetch) return;
+      var browser = norm(navigator.language) || "en";
+      fetch("/knots/ui-lang", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.text() : ""; }, function () { return ""; })
+        .then(function (t) {
+          var code = norm(t) || browser;
+          if (code === "en") return code;
+          return fetch(BASE + code + ".json", { cache: "no-store" })
+            .then(function (r) {
+              if (!r.ok) throw new Error("http " + r.status);
+              return r.json();
+            })
+            .then(function (d) {
+              var en = window.KNOTS_I18N_EN;   /* the object i18n.js reads */
+              Object.keys(d || {}).forEach(function (k) {
+                if (d[k] != null && d[k] !== "") en[k] = d[k];
+              });
+              return code;
+            })
+            .catch(function () { return "en"; });
+        })
+        .then(function (code) {
+          window.KnotsI18n.apply(document);
+          document.documentElement.lang = code === "zh-cn" ? "zh-CN" : code;
+        });
     })();
   </script>
 </body>

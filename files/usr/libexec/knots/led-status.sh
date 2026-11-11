@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # N4 — map node state to BPI-R4 status LEDs (TECH_SPEC §9.2).
 # Primary: green:status   Error accent: blue:wps
-# States: booting | syncing | synced | error
+# States: booting | syncing | synced | error | maintenance (update / reset)
 
 set -e
 
@@ -10,6 +10,9 @@ LED_GREEN="${KNOTS_LED_STATUS:-/sys/class/leds/green:status}"
 LED_BLUE="${KNOTS_LED_ERROR:-/sys/class/leds/blue:wps}"
 STATUS_JSON="${KNOTS_STATUS_JSON:-/tmp/knots/status.json}"
 STATE_FILE="${KNOTS_LED_STATE:-/tmp/knots/led.state}"
+# Firmware update / factory reset in progress (upgrade-ui.sh, factory-reset-ui.sh)
+UPGRADE_MARK="${KNOTS_UPGRADE_MARK:-/tmp/knots/upgrade.active}"
+RESET_MARK="${KNOTS_RESET_MARK:-/tmp/knots/factory-reset.active}"
 mkdir -p "$(dirname "$STATE_FILE")" 2>/dev/null || true
 # Factory label mode: the station owns the LEDs (blue = "put the sticker on me").
 LABEL_TOOL="${KNOTS_LABEL_TOOL:-/usr/libexec/knots/factory-label.sh}"
@@ -42,6 +45,13 @@ led_timer() {
 }
 
 derive_state() {
+	# An update or factory reset owns the light (very fast green): the node is
+	# being stopped on purpose — 25.0.32.0 showed "booting"/"error" here within
+	# 15 s, overwriting the blink upgrade-ui.sh / factory-reset-ui.sh had set.
+	if [ -f "$UPGRADE_MARK" ] || [ -f "$RESET_MARK" ]; then
+		echo maintenance
+		return
+	fi
 	# Prefer fresh status.json; fall back to storage/rpc clues.
 	if [ ! -f "$STATUS_JSON" ]; then
 		echo booting
@@ -107,6 +117,11 @@ apply_state() {
 			# Solid green
 			led_off "$LED_BLUE"
 			led_on "$LED_GREEN"
+			;;
+		maintenance)
+			# Very fast green: update or factory reset in progress — do not power off
+			led_off "$LED_BLUE"
+			led_timer "$LED_GREEN" 100 100
 			;;
 		error|*)
 			# Green off; blue error blink

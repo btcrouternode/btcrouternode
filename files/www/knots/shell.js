@@ -2,6 +2,20 @@
 /* Shared segmented top nav under brand header + theme icons.
    Brand title follows active impl (U10): Bitcoin Knots or Bitcoin Core. */
 (function () {
+  function T(k, v) { return window.KnotsI18n ? window.KnotsI18n.t(k, v) : k; }
+  /* English when i18n.js is missing (pages that never loaded it). */
+  function Te(k, en, v) {
+    if (!window.KnotsI18n) {
+      if (v) {
+        Object.keys(v).forEach(function (n) {
+          en = String(en).split("{" + n + "}").join(String(v[n]));
+        });
+      }
+      return en;
+    }
+    return T(k, v);
+  }
+
   /* D4 (review 2026-10-10): the wait-page service worker is retired — the
      wait pages are plain HTTP by design, where browsers never run service
      workers, and on HTTPS its scope "/" cached Node/Settings pages too.
@@ -63,7 +77,9 @@
     return "Bitcoin Node";
   }
 
+  var lastImpl = null;   /* re-drawn on language load */
   function applyBrand(impl) {
+    lastImpl = impl;
     var name = brandLabel(impl);
     var h1 = document.querySelector(".brand h1");
     var eyebrow = document.querySelector(".brand .eyebrow");
@@ -73,10 +89,10 @@
         h1.textContent =
           name === "Bitcoin Node"
             ? "Bitcoin Node"
-            : "Bitcoin Node - Running " + name;
+            : Te("shell.brand.running", "Bitcoin Node - Running {name}", { name: name });
       }
       if (document.title) {
-        document.title = "Node software — Bitcoin Node";
+        document.title = Te("shell.node_title", "Node software — Bitcoin Node");
       }
       return;
     }
@@ -90,25 +106,29 @@
   }
 
   /* R1a — always-visible appliance build for SD/board troubleshooting */
+  var lastBuild = null;   /* re-drawn on language load */
   function applyBuild(productVer, buildNum) {
     var el = document.getElementById("applianceBuild");
     if (!el) return;
+    lastBuild = [productVer, buildNum];
     var ver = (productVer || "").trim();
     var bn = (buildNum || "").trim();
     if (!ver || ver === "unknown") {
-      el.textContent = "Appliance build: unknown";
-      el.title = "Product version not found under /etc/knots/product_version";
+      el.textContent = Te("shell.build.unknown", "Appliance build: unknown");
+      el.title = Te("shell.build.unknown_title", "The product version was not found on this router.");
       return;
     }
-    var text = "Appliance build " + ver;
+    var text = Te("shell.build.version", "Appliance build {version}", { version: ver });
     if (bn && bn !== "unknown" && ver.indexOf("." + bn) === -1) {
-      text += " (rev " + bn + ")";
+      text = Te("shell.build.version_rev", "Appliance build {version} (rev {rev})", { version: ver, rev: bn });
     } else if (bn && bn !== "unknown") {
-      text += " · rev " + bn;
+      text = Te("shell.build.version_dot_rev", "Appliance build {version} · rev {rev}", { version: ver, rev: bn });
     }
     el.textContent = text;
-    el.title =
-      "R1a product version {openwrt}.{knots}.{build} — identify this SD/eMMC image when filing bugs";
+    el.title = Te(
+      "shell.build.title",
+      "Product version of this router — quote it when you report a problem."
+    );
   }
 
   function ensureBuildStrip(afterEl) {
@@ -116,8 +136,8 @@
     var p = document.createElement("p");
     p.id = "applianceBuild";
     p.className = "appliance-build";
-    p.setAttribute("aria-label", "Appliance build version");
-    p.textContent = "Appliance build: …";
+    p.setAttribute("aria-label", Te("shell.build.aria", "Appliance build version"));
+    p.textContent = Te("shell.build.loading", "Appliance build: …");
     afterEl.insertAdjacentElement("afterend", p);
   }
 
@@ -368,29 +388,45 @@
     }
   }
 
+  var THEME_TITLES = {
+    system: ["shell.theme.auto", "Auto — match desktop light/dark"],
+    light: ["shell.theme.light", "Light theme"],
+    dark: ["shell.theme.dark", "Dark theme"]
+  };
+
+  /* Theme group + button labels in the current language. */
+  function labelThemeToggle(wrap) {
+    if (!wrap) return;
+    wrap.setAttribute("aria-label", Te("shell.theme.group", "Colour theme"));
+    var buttons = wrap.querySelectorAll("button[data-theme-set]");
+    for (var i = 0; i < buttons.length; i++) {
+      var t = THEME_TITLES[buttons[i].getAttribute("data-theme-set")];
+      if (!t) continue;
+      var title = Te(t[0], t[1]);
+      buttons[i].setAttribute("aria-label", title);
+      buttons[i].title = title;
+    }
+  }
+
   function themeToggle() {
     var wrap = document.createElement("div");
     wrap.id = "theme-toggle";
     wrap.className = "theme-toggle";
     wrap.setAttribute("role", "group");
-    wrap.setAttribute("aria-label", "Colour theme");
 
     var modes = [
       {
         id: "system",
-        title: "Auto — match desktop light/dark",
         html: '<span class="theme-auto" aria-hidden="true">A</span>'
       },
-      { id: "light", title: "Light theme", html: ICON_SUN },
-      { id: "dark", title: "Dark theme", html: ICON_MOON }
+      { id: "light", html: ICON_SUN },
+      { id: "dark", html: ICON_MOON }
     ];
     for (var i = 0; i < modes.length; i++) {
       (function (m) {
         var btn = document.createElement("button");
         btn.type = "button";
         btn.setAttribute("data-theme-set", m.id);
-        btn.setAttribute("aria-label", m.title);
-        btn.title = m.title;
         btn.innerHTML = m.html;
         btn.addEventListener("click", function () {
           if (window.KnotsTheme) window.KnotsTheme.set(m.id);
@@ -399,6 +435,7 @@
         wrap.appendChild(btn);
       })(modes[i]);
     }
+    labelThemeToggle(wrap);
     syncThemeButtons(wrap);
     window.addEventListener("knots-theme", function () {
       syncThemeButtons(wrap);
@@ -457,7 +494,7 @@
     var nav = document.createElement("nav");
     nav.id = "topnav";
     nav.className = "topnav";
-    nav.setAttribute("aria-label", "Appliance sections");
+    nav.setAttribute("aria-label", Te("shell.nav.aria", "Appliance sections"));
 
     var primary = document.createElement("div");
     primary.className = "topnav-primary";
@@ -478,7 +515,7 @@
     luciA.href = luciUrl();
     luciA.textContent =
       window.KnotsI18n ? window.KnotsI18n.t("nav.luci") : "Router settings";
-    luciA.title = "LuCI — password required";
+    luciA.title = Te("shell.nav.luci_title", "Router settings (LuCI) — password required");
 
     nav.appendChild(primary);
     nav.appendChild(luciA);
@@ -495,7 +532,24 @@
       if (items[i].i18n) links[i].textContent = window.KnotsI18n.t(items[i].i18n);
     }
     var luciA = nav.querySelector(".nav-luci");
-    if (luciA) luciA.textContent = window.KnotsI18n.t("nav.luci");
+    if (luciA) {
+      luciA.textContent = window.KnotsI18n.t("nav.luci");
+      luciA.title = T("shell.nav.luci_title");
+    }
+    nav.setAttribute("aria-label", T("shell.nav.aria"));
+  }
+
+  /* After every language load: menu, theme buttons, build strip, brand. */
+  function relabelChrome() {
+    relabelNav();
+    labelThemeToggle(document.getElementById("theme-toggle"));
+    var strip = document.getElementById("applianceBuild");
+    if (strip) {
+      strip.setAttribute("aria-label", T("shell.build.aria"));
+      if (lastBuild) applyBuild(lastBuild[0], lastBuild[1]);
+      else strip.textContent = T("shell.build.loading");
+    }
+    if (lastImpl !== null) applyBrand(lastImpl);
   }
 
   function startShell() {
@@ -504,6 +558,7 @@
        A failed JSON parse used to skip inject() and leave Node Status half-drawn. */
     inject();
     if (window.KnotsI18n) {
+      if (window.KnotsI18n.onChange) window.KnotsI18n.onChange(relabelChrome);
       window.KnotsI18n.detectInitial()
         .then(function () {
           relabelNav();

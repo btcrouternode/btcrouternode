@@ -179,7 +179,7 @@ case "$ACTION" in
 			prog_label=$(progress_steps_label "$prog_step")
 		fi
 		ok_json "$(printf \
-			'{"ok":true,"product_version":"%s","flash_id":"%s","unit_name":"%s","release_sig_required":%s,"build_channel":"%s","conf_path":"%s","conf_present":%s,"upgrade":%s,"ca_sha256":"%s","ca_constrained":%s,"node_running":%s,"node_busy":%s,"busy_message":"%s","reindex_running":%s,"last_op":%s,"lang":"%s","upgrade_confirm":"UPGRADE","save_confirm":"SAVE","advanced_confirm":"ADVANCED","language_confirm":"LANGUAGE","stop_confirm":"STOP","start_confirm":"START","reboot_confirm":"REBOOT","shutdown_confirm":"SHUTDOWN","factory_reset_confirm":"RESET","factory_reset_expected_seconds":%s,"factory_reset_active":%s,"factory_reset_live":%s,"upgrade_live":%s,"upgrade_expected_seconds":%s,"upgrade_keep_config":%s,"progress_step":"%s","progress_label":"%s","note":"Upgrade never wipes the blockchain (NF9). Paste the published SHA256 before upgrading (U13). Knots/Core binaries stay under Node software. Every change needs router username/password (U15). Factory reset never wipes M.2 (N3/S7)."}' \
+			'{"ok":true,"product_version":"%s","flash_id":"%s","unit_name":"%s","release_sig_required":%s,"build_channel":"%s","conf_path":"%s","conf_present":%s,"upgrade":%s,"ca_sha256":"%s","ca_constrained":%s,"node_running":%s,"node_busy":%s,"busy_message":"%s","reindex_running":%s,"last_op":%s,"lang":"%s","upgrade_confirm":"UPGRADE","save_confirm":"SAVE","advanced_confirm":"ADVANCED","language_confirm":"LANGUAGE","stop_confirm":"STOP","start_confirm":"START","reboot_confirm":"REBOOT","shutdown_confirm":"SHUTDOWN","factory_reset_confirm":"RESET","factory_reset_expected_seconds":%s,"factory_reset_active":%s,"factory_reset_live":%s,"upgrade_live":%s,"upgrade_expected_seconds":%s,"upgrade_keep_config":%s,"progress_step":"%s","progress_label":"%s","note":"Upgrades and factory resets never erase the blockchain on the M.2. Paste the published SHA256 before upgrading. Bitcoin Core updates are on Node software. Every change needs the router username and password."}' \
 			"$(json_escape "$pv")" "$(json_escape "$(head -c 64 /etc/knots/flash-id 2>/dev/null)")" "$(json_escape "$(knots_unit_name 2>/dev/null || true)")" "$rsig_req" "$(json_escape "$(head -c 16 /etc/knots/build_channel 2>/dev/null)")" "$(json_escape "$CONF_HOST")" "$conf_ok" "$upg" "$(json_escape "$ca_sha256")" "$ca_constrained" "$node_running" "$node_busy" "$(json_escape "$busy_msg")" "$reindex_running" "$(node_op_result_json)" "$(json_escape "$ulang")" "$fr_sec" "$fr_active" "$fr_live" "$upg_live" "$upg_sec" "$upg_keep" "$(json_escape "$prog_step")" "$(json_escape "$prog_label")" )"
 		;;
 	locale)
@@ -191,7 +191,7 @@ case "$ACTION" in
 		lang=$(urldecode_soft "$(qval lang)")
 		[ -n "$lang" ] || fail_json "bad_lang" "Language required"
 		setup_ui_lang_apply "$lang" || fail_json "bad_lang" "Unsupported language"
-		ok_json "$(printf '{"ok":true,"message":"UI language updated for Knots and LuCI.","lang":"%s"}' \
+		ok_json "$(printf '{"ok":true,"message":"Language updated for these pages and Router settings.","lang":"%s"}' \
 			"$(json_escape "$(setup_ui_lang)")")"
 		;;
 	conf)

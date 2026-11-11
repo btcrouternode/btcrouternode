@@ -1,13 +1,50 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Shared full-page progress wait (factory reset + firmware upgrade). */
 (function (global) {
-  var LAN_DROP =
+  /* Strings: i18n/en.js is bundled with the page, so T() never needs the
+     network — the router may be rebooting while this page runs. */
+  function T(k, v) { return global.KnotsI18n ? global.KnotsI18n.t(k, v) : k; }
+
+  var LAN_DROP_EN =
     "Your computer may show Ethernet or Wi-Fi as disconnected while the router " +
     "restarts. That is normal. Leave the cable plugged in. If Ubuntu turns LAN " +
     "off, click it back on. Do not power-cycle the router.";
+  /* In the current language (LAN_DROP below stays the English text). */
+  function lanDrop() {
+    return global.KnotsI18n ? T("wait.lan_drop") : LAN_DROP_EN;
+  }
+  var LAN_DROP = LAN_DROP_EN;
 
   function $(id) {
     return document.getElementById(id);
+  }
+
+  /* Text drawn once (hint / copy / warning): remember how to draw it and draw
+     it again when the language loads (KnotsI18n.onChange). */
+  var drawn = {};
+  function draw(id, fn) {
+    var el = $(id);
+    if (!el || typeof fn !== "function") return;
+    drawn[id] = fn;
+    fn(el);
+  }
+  function redrawAll() {
+    Object.keys(drawn).forEach(function (id) {
+      var el = $(id);
+      if (el) {
+        try { drawn[id](el); } catch (e) {}
+      }
+    });
+    relabelSteps();
+  }
+  if (global.KnotsI18n && global.KnotsI18n.onChange) {
+    global.KnotsI18n.onChange(redrawAll);
+  }
+
+  /* Step label in the current language (English label = fallback). */
+  function stepLabel(s) {
+    if (!s) return "";
+    return s.key && global.KnotsI18n ? T(s.key) : s.label;
   }
 
   /*
@@ -24,38 +61,40 @@
   var STEP_SETS = {
     /* Factory reset: first-boot after overlay wipe matches -n LAN (~413s). */
     reset: [
-      { id: "stop_node", label: "Stopping BTC Node", holdMs: 90000 },
-      { id: "stop_lxc", label: "Stopping Knots Services", holdMs: 65000 },
-      { id: "reset_settings", label: "Resetting Router Settings", holdMs: 20000 },
-      { id: "restarting", label: "Restarting Router", holdMs: 25000 },
-      { id: "starting", label: "Starting Network Services", holdMs: 420000 },
-      { id: "init", label: "Opening Setup", holdMs: 30000 }
+      { id: "stop_node", key: "wait.step.stop_node", label: "Stopping BTC Node", holdMs: 90000 },
+      { id: "stop_lxc", key: "wait.step.stop_services", label: "Stopping node services", holdMs: 65000 },
+      { id: "reset_settings", key: "wait.step.reset_settings", label: "Resetting Router Settings", holdMs: 20000 },
+      { id: "restarting", key: "wait.step.restarting", label: "Restarting Router", holdMs: 25000 },
+      { id: "starting", key: "wait.step.starting", label: "Starting Network Services", holdMs: 420000 },
+      { id: "init", key: "wait.step.open_setup", label: "Opening Setup", holdMs: 30000 }
     ],
     /* Reset-settings firmware: Updating covers flash + reboot + first-boot LAN. */
     upgrade: [
-      { id: "stop_node", label: "Stopping BTC Node", holdMs: 90000 },
-      { id: "stop_lxc", label: "Stopping Knots Services", holdMs: 65000 },
-      { id: "updating", label: "Updating Router", holdMs: 450000 },
-      { id: "init", label: "Opening Setup", holdMs: 30000 }
+      { id: "stop_node", key: "wait.step.stop_node", label: "Stopping BTC Node", holdMs: 90000 },
+      { id: "stop_lxc", key: "wait.step.stop_services", label: "Stopping node services", holdMs: 65000 },
+      { id: "updating", key: "wait.step.updating", label: "Updating Router", holdMs: 450000 },
+      { id: "init", key: "wait.step.open_setup", label: "Opening Setup", holdMs: 30000 }
     ],
     /* In-place keep-settings: same four stages; last bar opens Node Status. */
     upgradeKeep: [
-      { id: "stop_node", label: "Stopping BTC Node", holdMs: 90000 },
-      { id: "stop_lxc", label: "Stopping Knots Services", holdMs: 65000 },
-      { id: "updating", label: "Updating Router", holdMs: 90000 },
-      { id: "init", label: "Opening Node Status", holdMs: 30000 }
+      { id: "stop_node", key: "wait.step.stop_node", label: "Stopping BTC Node", holdMs: 90000 },
+      { id: "stop_lxc", key: "wait.step.stop_services", label: "Stopping node services", holdMs: 65000 },
+      { id: "updating", key: "wait.step.updating", label: "Updating Router", holdMs: 90000 },
+      { id: "init", key: "wait.step.open_status", label: "Opening Node Status", holdMs: 30000 }
     ]
   };
 
   var activeStepper = null;
 
+  /* extra: text, or a function returning text (re-drawn on language load). */
   function showLinkDown(extra) {
-    var hint = $("waitHint");
     var detail = $("waitProgressDetail");
-    var msg = extra ? extra + " " + LAN_DROP : LAN_DROP;
-    if (hint) hint.textContent = msg;
+    draw("waitHint", function (hint) {
+      var x = typeof extra === "function" ? extra() : extra;
+      hint.textContent = x ? x + " " + lanDrop() : lanDrop();
+    });
     if (detail && !activeStepper) {
-      detail.textContent = "Waiting for the router LAN to come back…";
+      detail.textContent = T("wait.lan_back");
     }
   }
 
@@ -246,22 +285,25 @@
 
   function handoffMessage(dest, reason) {
     if (reason === "https_untrusted") {
-      return (
-        "The router is back, but Node Status needs a trusted HTTPS connection. " +
-        "Stay on this page — do not power-cycle."
-      );
+      return T("wait.handoff.https_untrusted");
     }
     if (dest && dest.page === "setup") {
-      return "Waiting for first-run Setup at http://" + namedHost() + " …";
+      return T("wait.handoff.setup", { url: "http://" + namedHost() });
     }
-    return "Waiting for Node Status to come ready at https://" + namedHost() + " …";
+    return T("wait.handoff.status", { url: "https://" + namedHost() });
+  }
+
+  /* Destination name for messages (wait-handoff.js keeps English labels). */
+  function destName(dest) {
+    if (dest && dest.page === "setup") return T("wait.dest.setup");
+    if (dest && dest.page === "status") return T("wait.dest.status");
+    return (dest && dest.label) || "";
   }
 
   function showHandoffStay(dest, probes) {
     var H = global.KnotsWaitHandoff;
     var reason = H && typeof H.blockedReason === "function" ? H.blockedReason(dest, probes) : "";
-    var hint = $("waitHint");
-    if (hint) {
+    draw("waitHint", function (hint) {
       hint.textContent = handoffMessage(dest, reason);
       if (dest && dest.url && !hint.querySelector("[data-handoff-open]")) {
         hint.appendChild(document.createTextNode(" "));
@@ -269,10 +311,10 @@
         a.setAttribute("data-handoff-open", "1");
         a.className = "btn-primary";
         a.href = dest.url;
-        a.textContent = dest.page === "setup" ? "Open Setup" : "Open Node Status";
+        a.textContent = dest.page === "setup" ? T("wait.open_setup") : T("wait.open_status");
         hint.appendChild(a);
       }
-    }
+    });
     if ($("waitProgressDetail")) {
       $("waitProgressDetail").textContent = handoffMessage(dest, reason);
     }
@@ -348,10 +390,10 @@
           showHandoffStay(dest, probes);
           if (typeof opts.onTimeout === "function") opts.onTimeout(dest, probes);
         } else if (!offered) {
-          var hint = $("waitHint");
-          if (hint && dest && dest.label) {
-            hint.textContent =
-              "Router answered — confirming " + dest.label + " is ready…";
+          if ($("waitHint") && dest && dest.label) {
+            draw("waitHint", function (hint) {
+              hint.textContent = T("wait.confirming", { dest: destName(dest) });
+            });
           }
         }
         scheduleRetry();
@@ -432,7 +474,7 @@
         if (i < index) {
           el.classList.add("is-done");
           fillHigh[i] = 100;
-          if (state) state.textContent = "Done";
+          if (state) state.textContent = T("wait.state.done");
           if (fill) {
             fill.classList.remove("indeterminate");
             fill.style.width = "100%";
@@ -442,7 +484,9 @@
           el.classList.add("is-active");
           if (state) {
             state.textContent =
-              remain > 0 ? "In progress · about " + remain + "s" : "Still working…";
+              remain > 0
+                ? T("wait.state.active", { s: remain })
+                : T("wait.state.still");
           }
           if (fill) {
             fill.classList.remove("indeterminate");
@@ -451,7 +495,7 @@
           if (track) track.setAttribute("aria-valuenow", String(fillPct));
         } else {
           el.classList.add("is-pending");
-          if (state) state.textContent = "Waiting";
+          if (state) state.textContent = T("wait.state.waiting");
           if (fill) {
             fill.classList.remove("indeterminate");
             fill.style.width = "0%";
@@ -460,13 +504,12 @@
         }
       }
       var cur = defs[index];
-      if (cur && $("waitProgressLabel")) $("waitProgressLabel").textContent = cur.label;
+      if (cur && $("waitProgressLabel")) $("waitProgressLabel").textContent = stepLabel(cur);
       if (cur && $("waitProgressDetail")) {
         $("waitProgressDetail").textContent =
-          cur.label +
-          (remain > 0
-            ? " — about " + remain + "s on this step. Do not power-cycle."
-            : " — still working. Do not power-cycle.");
+          remain > 0
+            ? T("wait.detail.active", { step: stepLabel(cur), s: remain })
+            : T("wait.detail.still", { step: stepLabel(cur) });
       }
     }
 
@@ -533,16 +576,32 @@
       li.innerHTML =
         '<div class="wait-step-head">' +
         '<span class="wait-step-label"></span>' +
-        '<span class="wait-step-state">Waiting</span>' +
+        '<span class="wait-step-state"></span>' +
         "</div>" +
         '<div class="wait-step-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
         '<div class="wait-step-fill"></div>' +
         "</div>";
-      li.querySelector(".wait-step-label").textContent = steps[i].label;
+      li.querySelector(".wait-step-label").textContent = stepLabel(steps[i]);
+      li.querySelector(".wait-step-state").textContent = T("wait.state.waiting");
       root.appendChild(li);
     }
     activeStepper = makeStepper(kind);
     activeStepper.paint();
+  }
+
+  /* Language loaded after the list was drawn: re-label the steps. */
+  function relabelSteps() {
+    var root = $("waitStepList");
+    if (!root) return;
+    var defs = stepList(root.getAttribute("data-kind") || "reset");
+    var items = root.querySelectorAll(".wait-step");
+    for (var i = 0; i < items.length; i++) {
+      var id = items[i].getAttribute("data-step");
+      var n = stepIndexOf(defs, id);
+      var lab = items[i].querySelector(".wait-step-label");
+      if (lab && n >= 0) lab.textContent = stepLabel(defs[n]);
+    }
+    if (activeStepper) activeStepper.paint();
   }
 
   function applyStep(stepId) {
@@ -570,7 +629,7 @@
       var fill = items[i].querySelector(".wait-step-fill");
       var state = items[i].querySelector(".wait-step-state");
       var track = items[i].querySelector(".wait-step-track");
-      if (state) state.textContent = "Done";
+      if (state) state.textContent = T("wait.state.done");
       if (fill) {
         fill.classList.remove("indeterminate");
         fill.style.width = "100%";
@@ -634,6 +693,9 @@
    *  shouldFinish(d, ctx) -> bool,
    *  onFinish(d),
    *  startingDetail
+   * Text options (title, rebootTitle, rebootDetail, finishingDetail,
+   * startingDetail) may be functions returning the text in the current
+   * language — they are read again whenever the page redraws.
    */
   function runWait(opts) {
     opts = opts || {};
@@ -646,12 +708,16 @@
     var timer = null;
     var progressTimer = null;
     var key = opts.storageKey || "knotsProgressWait";
+    function txt(v) {
+      return typeof v === "function" ? v() : v;
+    }
     var ui = {
-      title: opts.title || "In Progress",
-      rebootTitle: opts.rebootTitle || opts.title || "In Progress",
-      rebootDetail:
-        opts.rebootDetail || "Finishing reboot — do NOT power cycle…",
-      finishingDetail: opts.finishingDetail || "Finishing…",
+      get title() { return txt(opts.title) || T("wait.in_progress"); },
+      get rebootTitle() {
+        return txt(opts.rebootTitle) || txt(opts.title) || T("wait.in_progress");
+      },
+      get rebootDetail() { return txt(opts.rebootDetail) || T("wait.reboot_detail"); },
+      get finishingDetail() { return txt(opts.finishingDetail) || T("wait.finishing"); },
       fillId: (opts.progressIds && opts.progressIds.fill) || "waitProgressFill",
       barId: (opts.progressIds && opts.progressIds.bar) || "waitProgressBar",
       labelId: (opts.progressIds && opts.progressIds.label) || "waitProgressLabel",
@@ -680,7 +746,7 @@
       if (Date.now() - downSince < ms) return;
       /* Stay on this document. Navigating while the LAN is down replaces
          this page with the browser “Unable to connect” error (F150). */
-      showLinkDown(opts.rebootDetail);
+      showLinkDown(function () { return txt(opts.rebootDetail); });
       if (!lingered && typeof opts.onDownLinger === "function") {
         lingered = true;
         opts.onDownLinger();
@@ -746,11 +812,7 @@
           pct,
           activeStepper
             ? null
-            : "About " +
-              remain +
-              "s remaining · " +
-              elapsedSec +
-              "s elapsed — Do NOT Power Cycle",
+            : T("wait.remaining", { remain: remain, elapsed: elapsedSec }),
           false
         );
         applyHeading(ui.title, null);
@@ -833,7 +895,7 @@
         detailId: ui.detailId
       },
       0,
-      opts.startingDetail || "Working…",
+      txt(opts.startingDetail) || T("wait.working"),
       false
     );
     applyHeading(ui.title, null);
@@ -878,6 +940,9 @@
     clearState: clearState,
     runWait: runWait,
     LAN_DROP: LAN_DROP,
+    lanDrop: lanDrop,
+    draw: draw,
+    T: T,
     showLinkDown: showLinkDown,
     watchOnline: watchOnline,
     namedAliveUrl: namedAliveUrl,

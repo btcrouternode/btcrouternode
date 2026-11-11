@@ -1,15 +1,186 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 (function () {
+  /* i18n: every user-visible string is a catalogue key (settings.* for this
+     page, api.settings.* for router answers); English ships in i18n/en.js. */
+  function T(k, v) { return window.KnotsI18n ? window.KnotsI18n.t(k, v) : k; }
+
   function $(id) {
     return document.getElementById(id);
   }
 
+  /* A banner drawn from a catalogue key is re-drawn when the language loads. */
+  var bannerKey = null;
+
   function banner(msg, isErr) {
     var el = $("banner");
+    bannerKey = null;
     if (!el) return;
     el.hidden = !msg;
     el.textContent = msg || "";
     el.className = isErr ? "error" : "";
+  }
+
+  function bannerT(key, vars, isErr) {
+    banner(T(key, vars), isErr);
+    bannerKey = { key: key, vars: vars, isErr: isErr };
+  }
+
+  /* Router answers carry English text and, on errors, a stable "error" code.
+     Show the catalogue string for a known code or a known sentence; anything
+     else falls back to the router's own text. */
+  var API_ERROR_KEYS = {
+    bad_length: "api.settings.bad_length",
+    bad_size: "api.settings.bad_size",
+    too_large: "api.settings.too_large",
+    wan_denied: "api.settings.wan_denied",
+    creds_in_url: "api.settings.creds_in_url",
+    auth_locked: "api.settings.auth_locked",
+    auth_failed: "api.settings.auth_failed",
+    origin_denied: "api.settings.origin_denied",
+    method: "api.settings.method",
+    node_busy: "api.settings.node_busy",
+    confirm_required: "api.settings.confirm_required",
+    bad_lang: "api.settings.bad_lang",
+    no_conf: "api.settings.no_conf",
+    temp: "api.settings.temp",
+    empty_conf: "api.settings.empty_conf",
+    no_changes: "api.settings.no_changes",
+    write_failed: "api.settings.write_failed",
+    product_keys: "api.settings.product_keys",
+    reindex_in_progress: "api.settings.reindex_in_progress",
+    already_running: "api.settings.already_running",
+    bad_sha256: "api.settings.bad_sha256",
+    sha256_required: "api.settings.sha256_required",
+    bad_filename: "api.settings.bad_filename",
+    empty_upload: "api.settings.empty_upload",
+    sha256_mismatch: "api.settings.sha256_mismatch",
+    unsigned_image: "api.settings.unsigned_image",
+    bad_signature: "api.settings.bad_signature",
+    no_sysupgrade: "api.settings.no_sysupgrade",
+    bad_action: "api.settings.bad_action"
+  };
+
+  /* Success answers and node-operation results (last_op) come as text only. */
+  var API_TEXT_KEYS = {
+    "UI language updated for Knots and LuCI.": "api.settings.lang_updated",
+    "bitcoin.conf saved; node restarting.": "api.settings.conf_saved_restarting",
+    "bitcoin.conf saved; node restarted.": "api.settings.conf_restarted",
+    "bitcoin.conf saved; node restarted and is still loading.": "api.settings.conf_still_loading",
+    "bitcoin.conf saved, but the node did not start again. Check the last change, or see the node log.":
+      "api.settings.conf_not_started",
+    "Bitcoin node stopping.": "api.settings.node_stopping",
+    "Bitcoin node stopped.": "api.settings.node_stopped",
+    "The Bitcoin node is still running after the stop request. Try again.": "api.settings.stop_failed",
+    "Bitcoin node starting.": "api.settings.node_starting",
+    "Bitcoin node starting with reindex. Keep power on — validation can take many hours. Not a blockchain re-download.":
+      "api.settings.node_starting_reindex",
+    "Bitcoin node starting with a full reindex. Keep power on — this can take many hours. Not a blockchain re-download.":
+      "api.settings.node_starting_full",
+    "Bitcoin node started.": "api.settings.node_started",
+    "The Bitcoin node did not start — see the node log.": "api.settings.start_failed",
+    "Reindex running — keep power on.": "api.settings.reindex_running",
+    "Full reindex running — keep power on.": "api.settings.reindex_full_running",
+    "The node did not start the reindex — see the node log.": "api.settings.reindex_not_started",
+    "Stopping Bitcoin node and rebooting…": "api.settings.rebooting",
+    "Stopping Bitcoin node and shutting down…": "api.settings.shutting_down",
+    "Factory Reset in Progress": "api.settings.factory_reset_started",
+    "New HTTPS certificate created. Install it again on each device (Install trust page) — the old one no longer works.":
+      "api.settings.tls_renewed",
+    "Checksum verified — upgrade starting (keeping router settings). Device will reboot. Blockchain on M.2 is not wiped.":
+      "api.settings.upgrade_keep",
+    "Checksum verified — upgrade starting (resetting router settings). Device will reboot. Blockchain on M.2 is not wiped.":
+      "api.settings.upgrade_reset",
+    "In progress": "settings.op.in_progress",
+    "Done.": "settings.op.done"
+  };
+
+  function apiText(d, fallbackKey) {
+    var code = (d && d.error) || "";
+    var msg = (d && d.message) || "";
+    var m;
+    if (code === "conf_rejected") {
+      /* bitcoin-conf-lib.sh conf_write_raw_validated */
+      m = /^blocked_key:(.+)$/.exec(msg);
+      if (m) return T("api.settings.blocked_key", { key: m[1] });
+      if (msg === "missing_product_keys") return T("api.settings.missing_product_keys");
+      return msg || T("api.settings.conf_rejected");
+    }
+    if (code === "bad_value") {
+      m = /for (\S+)$/.exec(msg);
+      if (m) return T("api.settings.bad_value", { key: m[1] });
+    }
+    if (code === "tls_failed") {
+      m = /certificate: ([\s\S]*)$/.exec(msg);
+      return T("api.settings.tls_failed", { detail: m ? m[1] : "" });
+    }
+    if (code && API_ERROR_KEYS[code]) return T(API_ERROR_KEYS[code]);
+    if (msg && API_TEXT_KEYS[msg]) return T(API_TEXT_KEYS[msg]);
+    if (/^The \S+ operation stopped unexpectedly/.test(msg)) return T("api.settings.op_interrupted");
+    return msg || code || (fallbackKey ? T(fallbackKey) : "");
+  }
+
+  /* Node status word (running / stopped / stopping… ) — kept as a state so a
+     language change re-draws it. */
+  var NODE_STATE_KEYS = {
+    running: "settings.node.state.running",
+    stopped: "settings.node.state.stopped",
+    stopping: "settings.node.state.stopping",
+    starting: "settings.node.state.starting",
+    restarting: "settings.node.state.restarting"
+  };
+  var nodeState = null;
+
+  function setNodeState(st) {
+    nodeState = NODE_STATE_KEYS[st] ? st : null;
+    if ($("nodeRunning")) {
+      $("nodeRunning").textContent = nodeState ? T(NODE_STATE_KEYS[nodeState]) : "—";
+    }
+  }
+
+  function nodeStateFrom(d) {
+    return d.node_running === true ? "running" : d.node_running === false ? "stopped" : null;
+  }
+
+  /* P3/P4: old units keep an unrestricted CA until Renew / factory reset;
+     the new installers refuse it, so say what to do. */
+  var caConstrained = null;
+
+  function drawCaRestricted() {
+    if (!$("caRestricted")) return;
+    $("caRestricted").textContent =
+      caConstrained === true
+        ? T("settings.tls.restricted")
+        : caConstrained === false
+        ? T("settings.tls.unrestricted")
+        : "";
+  }
+
+  /* "Type WORD to confirm": WORD is what the router checks, so it is never
+     translated — only the sentence around it (data-confirm-i18n). */
+  function drawConfirmLabels() {
+    var els = document.querySelectorAll("[data-confirm]");
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      var word = el.getAttribute("data-confirm") || "";
+      var tpl = T(el.getAttribute("data-confirm-i18n") || "settings.confirm.type", {
+        word: "\u0000"
+      });
+      var parts = String(tpl).split("\u0000");
+      if (parts.length < 2) continue; /* no usable string: keep the page text */
+      el.textContent = "";
+      el.appendChild(document.createTextNode(parts[0]));
+      var strong = document.createElement("strong");
+      strong.textContent = word;
+      el.appendChild(strong);
+      el.appendChild(document.createTextNode(parts.slice(1).join(word)));
+    }
+  }
+
+  /* <title> is "Settings — <brand>"; shell.js owns the brand part. */
+  function drawTitle() {
+    var t = document.title || "";
+    var i = t.indexOf(" — ");
+    if (i >= 0) document.title = T("nav.settings") + t.slice(i);
   }
 
   function setUpgradeProgress(visible, label, pct, detail, indeterminate) {
@@ -20,30 +191,6 @@
     box.hidden = !visible;
     if ($("upgradeProgressLabel")) $("upgradeProgressLabel").textContent = label || "";
     if ($("upgradeProgressDetail")) $("upgradeProgressDetail").textContent = detail || "";
-    fill.classList.toggle("indeterminate", !!indeterminate);
-    if (indeterminate) {
-      fill.style.width = "35%";
-      if (bar) bar.setAttribute("aria-valuenow", "0");
-      return;
-    }
-    var n = Math.max(0, Math.min(100, pct == null ? 0 : pct));
-    fill.style.width = n + "%";
-    if (bar) bar.setAttribute("aria-valuenow", String(Math.round(n)));
-  }
-
-  function setFactoryResetProgress(visible, label, pct, detail, indeterminate) {
-    var box = $("factoryResetProgress");
-    var fill = $("factoryResetProgressFill");
-    var bar = $("factoryResetProgressBar");
-    if (!box || !fill) return;
-    box.hidden = !visible;
-    if ($("factoryResetProgressLabel")) {
-      $("factoryResetProgressLabel").textContent =
-        label || "Router Resetting to Factory Defaults";
-    }
-    if ($("factoryResetProgressDetail")) {
-      $("factoryResetProgressDetail").textContent = detail || "";
-    }
     fill.classList.toggle("indeterminate", !!indeterminate);
     if (indeterminate) {
       fill.style.width = "35%";
@@ -85,7 +232,7 @@
       return JSON.parse(t);
     } catch (e) {
       throw new Error(
-        "Settings API returned non-JSON (HTTP " + r.status + "). " + (t || "").slice(0, 160)
+        T("settings.err.non_json", { status: r.status, text: (t || "").slice(0, 160) })
       );
     }
   }
@@ -115,10 +262,7 @@
     ms = ms || 180000;
     function again() {
       return apiJson("/api/settings?action=status").then(function (d) {
-        if ($("nodeRunning")) {
-          $("nodeRunning").textContent =
-            d.node_running === true ? "running" : d.node_running === false ? "stopped" : "—";
-        }
+        setNodeState(nodeStateFrom(d));
         syncNodeCtlButtons(d.node_running, d.reindex_running);
         /* L1 — node_running flips before a restart/stop worker finishes;
            wait for node_busy to clear so the next action is not refused
@@ -128,7 +272,12 @@
         var op = d && d.last_op;
         var finished = op && op.state && op.state !== "running";
         if (!d.node_busy && (pred(d) || (finished && op.state === "failed"))) {
-          if (finished) banner(op.message || (op.state === "failed" ? "Operation failed" : "Done."), op.state === "failed");
+          if (finished) {
+            banner(
+              apiText({ message: op.message }, op.state === "failed" ? "settings.op.failed" : "settings.op.done"),
+              op.state === "failed"
+            );
+          }
           return d;
         }
         if (Date.now() - start > ms) return d;
@@ -154,20 +303,9 @@
         /* "Add another computer": the plain address opens Enable Secure Connection */
         if ($("addPcUrl") && d.unit_name) $("addPcUrl").textContent = "http://" + d.unit_name + ".local";
         if ($("caFingerprint")) $("caFingerprint").textContent = d.ca_sha256 || "—";
-        if ($("caRestricted")) {
-          /* P3/P4: old units keep an unrestricted CA until Renew / factory reset;
-             the new installers refuse it, so say what to do. */
-          $("caRestricted").textContent =
-            d.ca_constrained === true
-              ? "Restricted to this router."
-              : d.ca_constrained === false
-              ? "Not restricted (older certificate) — renew it so new devices can install it."
-              : "";
-        }
-        if ($("nodeRunning")) {
-          $("nodeRunning").textContent =
-            d.node_running === true ? "running" : d.node_running === false ? "stopped" : "—";
-        }
+        caConstrained = typeof d.ca_constrained === "boolean" ? d.ca_constrained : null;
+        drawCaRestricted();
+        setNodeState(nodeStateFrom(d));
         syncNodeCtlButtons(d.node_running, d.reindex_running);
         if (window.KnotsBrand) {
           window.KnotsBrand.applyBuild(d.product_version, null);
@@ -180,7 +318,7 @@
         return apiJson("/api/settings?action=conf");
       })
       .then(function (d) {
-        if (!d || !d.ok) throw new Error((d && d.message) || "conf load failed");
+        if (!d || !d.ok) throw new Error(apiText(d, "settings.err.conf_load"));
         var s = d.safe || {};
         ["dbcache", "maxconnections", "maxmempool", "mempoolexpiry", "blocksonly", "peerbloomfilters"].forEach(
           function (k) {
@@ -232,18 +370,12 @@
     if (!tls || typeof tls.isLinuxDesktop !== "function" || !tls.isLinuxDesktop()) {
       return true;
     }
-    var title =
-      typeof tls.isUbuntu === "function" && tls.isUbuntu()
-        ? "Ubuntu will turn Ethernet off"
-        : "Linux will turn Ethernet off";
+    var os = typeof tls.isUbuntu === "function" && tls.isUbuntu() ? "Ubuntu" : "Linux";
+    var title = T("settings.landrop.title", { os: os });
     var lines =
       typeof tls.lanDropConfirmLines === "function"
         ? tls.lanDropConfirmLines()
-        : [
-            "Your computer may show Ethernet as disconnected while the router restarts.",
-            "Leave the cable plugged in. Click LAN back on if Ubuntu turns it off.",
-            "Keep the progress tab open. Do not power-cycle the router."
-          ];
+        : [T("settings.landrop.body", { os: os })];
     return confirmPopup(title, lines);
   }
 
@@ -285,13 +417,11 @@
     if (btn) {
       btn.setAttribute(
         "aria-label",
-        keep ? "Keep existing router settings" : "Reset router settings to factory defaults"
+        keep ? T("settings.upgrade.keep_aria") : T("settings.upgrade.reset_aria")
       );
     }
     if (hint) {
-      hint.textContent = keep
-        ? "Keep Wi‑Fi, admin password, and network settings. First-run Setup will not run again."
-        : "Wi‑Fi, admin password, and network settings return to factory defaults. First-run Setup runs again. Blockchain on M.2 is still not wiped.";
+      hint.textContent = keep ? T("settings.upgrade.hint.keep") : T("settings.upgrade.hint.reset");
     }
   }
 
@@ -326,7 +456,7 @@
     var user = ($(userId).value || "").trim();
     var pass = $(passId).value || "";
     if (!user || !pass) {
-      banner("Router username and password required.", true);
+      bannerT("settings.err.auth_required", null, true);
       return null;
     }
     return { user: user, pass: pass };
@@ -337,11 +467,11 @@
     if (!auth) return;
     var typed = ($(confirmId).value || "").trim();
     if (typed !== confirmToken) {
-      banner("Type " + confirmToken + " to confirm.", true);
+      bannerT("settings.err.type_word", { word: confirmToken }, true);
       return;
     }
     if (!confirmPopup(title, lines)) return;
-    banner("Working…", false);
+    bannerT("settings.working", null, false);
     var body =
       "action=" +
       encodeURIComponent(action) +
@@ -365,10 +495,10 @@
       })
       .then(function (d) {
         if (!d || !d.ok) {
-          banner((d && d.message) || (d && d.error) || "Action failed", true);
+          banner(apiText(d, "settings.err.action_failed"), true);
           return;
         }
-        banner(d.message || "Done.", false);
+        banner(apiText(d, "settings.op.done"), false);
         if ($(confirmId)) $(confirmId).value = "";
         if ($(passId)) $(passId).value = "";
         if (action === "node_start") {
@@ -386,17 +516,17 @@
           return;
         }
         if (action === "reboot" || action === "shutdown") {
-          if ($("nodeRunning")) $("nodeRunning").textContent = "stopping…";
+          setNodeState("stopping");
           return;
         }
         if (action === "node_stop") {
-          if ($("nodeRunning")) $("nodeRunning").textContent = "stopping…";
+          setNodeState("stopping");
           return pollNodeUntil(function (st) {
             return st && st.node_running === false;
           });
         }
         if (action === "node_start") {
-          if ($("nodeRunning")) $("nodeRunning").textContent = "starting…";
+          setNodeState("starting");
           return pollNodeUntil(function (st) {
             return st && (st.node_running === true || st.reindex_running === true);
           });
@@ -405,7 +535,7 @@
       })
       .catch(function (e) {
         if (action === "reboot" || action === "shutdown") {
-          banner("Router is rebooting or shutting down…", false);
+          bannerT("settings.power.going_down", null, false);
           return;
         }
         banner(String(e.message || e), true);
@@ -418,8 +548,8 @@
         "node_stop",
         "STOP",
         "stopConfirm",
-        "Stop the Bitcoin node?",
-        ["bitcoind will stop. Chain data on the M.2 is kept.", "Use Start node when you want it running again."],
+        T("settings.node.stop.confirm_title"),
+        [T("settings.node.stop.confirm_body")],
         "nodeUser",
         "nodePass"
       );
@@ -456,32 +586,21 @@
   if ($("btnStart")) {
     $("btnStart").addEventListener("click", function () {
       if (!nodeIsStopped) {
-        banner(
-          "Stop the Bitcoin node first. Start is only available when the node is stopped.",
-          true
-        );
+        bannerT("settings.node.start.err_running", null, true);
         return;
       }
       var reindex = !!($("startReindex") && $("startReindex").checked);
       var kind =
         ($("startReindexKind") && $("startReindexKind").value) || "chainstate";
       if (kind !== "full") kind = "chainstate";
-      var lines = ["bitcoind will start using the existing M.2 datadir."];
-      var title = "Start the Bitcoin node?";
+      var lines = [T("settings.node.start.confirm_body")];
+      var title = T("settings.node.start.confirm_title");
       if (reindex && kind === "full") {
-        title = "Start the Bitcoin node with a full reindex?";
-        lines.push(
-          "You chose: Also rebuild the block index.",
-          "This rebuilds the block index and the chain database from every block file already on the M.2. It is not downloading the blockchain again.",
-          "This is slower than Repair chain database. Keep power on; it can take many hours."
-        );
+        title = T("settings.node.start.confirm_title_full");
+        lines = [T("settings.node.start.confirm_body_full")];
       } else if (reindex) {
-        title = "Start the Bitcoin node with reindex?";
-        lines.push(
-          "You chose: Repair chain database (usual).",
-          "This validates the chain database from blocks already on the M.2. It is not downloading the blockchain again.",
-          "Keep power on; this can take many hours."
-        );
+        title = T("settings.node.start.confirm_title_reindex");
+        lines = [T("settings.node.start.confirm_body_reindex")];
       }
       powerPost(
         "node_start",
@@ -503,8 +622,8 @@
         "reboot",
         "REBOOT",
         "rebootConfirm",
-        "Reboot the appliance?",
-        ["The Bitcoin node will be stopped first.", "The router will reboot. LAN briefly drops."],
+        T("settings.reboot.confirm_title"),
+        [T("settings.reboot.confirm_body")],
         "deviceUser",
         "devicePass"
       );
@@ -516,11 +635,8 @@
         "tls_renew",
         "RENEW",
         "tlsRenewConfirm",
-        "Replace the HTTPS certificate?",
-        [
-          "A new certificate is created for this router.",
-          "Every device must install it again before secure pages work there."
-        ],
+        T("settings.tls.confirm_title"),
+        [T("settings.tls.confirm_body")],
         "deviceUser",
         "devicePass"
       );
@@ -532,11 +648,8 @@
         "shutdown",
         "SHUTDOWN",
         "shutdownConfirm",
-        "Shut down the appliance?",
-        [
-          "The Bitcoin node will be stopped first.",
-          "The router will power off. You must power it on again manually."
-        ],
+        T("settings.shutdown.confirm_title"),
+        [T("settings.shutdown.confirm_body")],
         "deviceUser",
         "devicePass"
       );
@@ -551,32 +664,20 @@
       };
       var conf = (($("resetConfirm") && $("resetConfirm").value) || "").trim();
       if (!auth.user || !auth.pass) {
-        banner("Router username and password required.", true);
+        bannerT("settings.err.auth_required", null, true);
         return;
       }
       if (conf !== "RESET") {
-        banner("Type RESET to confirm.", true);
+        bannerT("settings.err.type_word", { word: "RESET" }, true);
         return;
       }
       if (
-        !confirmPopup("Reset to factory defaults?", [
-          "Router settings return to the appliance baseline.",
-          "Admin password becomes the factory default again.",
-          "You will go through first-run Setup (IUE) again.",
-          "The blockchain on the M.2 is NOT wiped."
-        ])
+        !confirmPopup(T("settings.reset.confirm_title"), [T("settings.reset.confirm_body")])
       ) {
         return;
       }
       if (!maybeLanDropPopup()) return;
-      banner("Starting factory reset…", false);
-      setFactoryResetProgress(
-        true,
-        "Router Resetting to Factory Defaults",
-        0,
-        "Opening reset page…",
-        true
-      );
+      bannerT("settings.reset.starting", null, false);
       var body =
         "action=factory_reset&confirm=RESET" +
         "&user=" +
@@ -596,8 +697,7 @@
         })
         .then(function (d) {
           if (!d || !d.ok) {
-            banner((d && d.message) || (d && d.error) || "Factory reset failed", true);
-            setFactoryResetProgress(false, "", 0, "", false);
+            banner(apiText(d, "settings.reset.failed"), true);
             return;
           }
           if ($("resetConfirm")) $("resetConfirm").value = "";
@@ -631,14 +731,21 @@
     var anchor = fileInput.closest("p") || fileInput.parentNode;
     if (!anchor || !anchor.parentNode) return;
     var wrap = document.createElement("p");
-    wrap.innerHTML =
-      '<label>SHA256 checksum (required)' +
-      '<input id="upgradeSha256" type="text" autocomplete="off" spellcheck="false" ' +
-      'placeholder="Paste 64-character hex from the release page" /></label>';
+    var label = document.createElement("label");
+    var labelText = document.createElement("span");
+    labelText.textContent = T("settings.upgrade.sha_label");
+    var input = document.createElement("input");
+    input.id = "upgradeSha256";
+    input.type = "text";
+    input.setAttribute("autocomplete", "off");
+    input.setAttribute("spellcheck", "false");
+    input.placeholder = T("settings.upgrade.sha_placeholder");
+    label.appendChild(labelText);
+    label.appendChild(input);
+    wrap.appendChild(label);
     var hint = document.createElement("p");
     hint.className = "muted";
-    hint.textContent =
-      "Copy the hash from the release / checksum page (or the .sha256 file). Required before upgrade.";
+    hint.textContent = T("settings.upgrade.sha_hint_short");
     if (anchor.nextSibling) {
       anchor.parentNode.insertBefore(wrap, anchor.nextSibling);
       anchor.parentNode.insertBefore(hint, wrap.nextSibling);
@@ -647,7 +754,7 @@
       anchor.parentNode.appendChild(hint);
     }
     var btn = $("btnUpgrade");
-    if (btn) btn.textContent = "Verify & upgrade";
+    if (btn) btn.textContent = T("settings.upgrade.button");
   }
 
   ensureUpgradeSha256Field();
@@ -681,50 +788,44 @@
     var expectSha = normalizeSha256($("upgradeSha256") && $("upgradeSha256").value);
     var btn = $("btnUpgrade");
     if (!file) {
-      banner("Choose a sysupgrade image file.", true);
+      bannerT("settings.upgrade.err.no_file", null, true);
       return;
     }
     var fname = file.name || "";
     if (/sdcard|\.img\.gz$/i.test(fname)) {
-      banner(
-        "SD card images (*.img.gz) cannot be used here. Choose a *sysupgrade.itb file (Settings upgrade).",
-        true
-      );
+      bannerT("settings.upgrade.err.sdcard", null, true);
       return;
     }
     if (fname && !/sysupgrade\.(itb|bin)$/i.test(fname)) {
-      banner("Expected a filename ending in sysupgrade.itb (or .bin).", true);
+      bannerT("settings.upgrade.err.filename", null, true);
       return;
     }
     if (!expectSha) {
-      banner(
-        "Paste the SHA256 from the release / checksum page (64 hex characters).",
-        true
-      );
+      bannerT("settings.upgrade.err.no_sha", null, true);
       return;
     }
     if (conf !== "UPGRADE") {
-      banner("Type UPGRADE to confirm.", true);
+      bannerT("settings.err.type_word", { word: "UPGRADE" }, true);
       return;
     }
     if (!user || !pass) {
-      banner("Router username and password required.", true);
+      bannerT("settings.err.auth_required", null, true);
       return;
     }
     var keepConfig = upgradeKeepConfig();
+    var confirmVars = {
+      file: file.name,
+      size: fmtBytes(file.size),
+      sha: expectSha.slice(0, 12) + "…" + expectSha.slice(-8)
+    };
     var confirmLines = [
-      "File: " + file.name,
-      "Size: " + fmtBytes(file.size),
-      "SHA256: " + expectSha.slice(0, 12) + "…" + expectSha.slice(-8),
       keepConfig
-        ? "Router settings: KEEP (Wi‑Fi, password, network)."
-        : "Router settings: RESET to factory defaults (Setup will run again).",
-      "The blockchain on the M.2 will NOT be wiped.",
-      "The device will reboot."
+        ? T("settings.upgrade.confirm_body_keep", confirmVars)
+        : T("settings.upgrade.confirm_body_reset", confirmVars)
     ];
     if (
       !confirmPopup(
-        keepConfig ? "Upgrade appliance software?" : "Upgrade and reset router settings?",
+        keepConfig ? T("settings.upgrade.confirm_title_keep") : T("settings.upgrade.confirm_title_reset"),
         confirmLines
       )
     ) {
@@ -734,25 +835,20 @@
 
     var prevVersion = ($("productVer") && $("productVer").textContent) || "";
     btn.disabled = true;
-    banner("Preparing upgrade…", false);
+    bannerT("settings.upgrade.preparing_banner", null, false);
     setUpgradeProgress(
       true,
-      "Preparing…",
+      T("settings.upgrade.p.preparing"),
       0,
       file.name + " (" + fmtBytes(file.size) + ")",
       true
     );
 
     function startUpload(localOk) {
-      banner(
-        localOk
-          ? "Local checksum OK — uploading… keep this page open."
-          : "Uploading — router will verify SHA256 before flash (normal on HTTP).",
-        false
-      );
+      bannerT(localOk ? "settings.upgrade.uploading_ok" : "settings.upgrade.uploading_http", null, false);
       setUpgradeProgress(
         true,
-        "Uploading image…",
+        T("settings.upgrade.p.uploading"),
         0,
         file.name + " (" + fmtBytes(file.size) + ")",
         false
@@ -783,12 +879,12 @@
       function enterRebootWait(why, expectedSeconds) {
         setUpgradeProgress(
           true,
-          "Firmware Update in Progress",
+          T("settings.upgrade.p.in_progress"),
           100,
-          why || "Opening firmware update page…",
+          why || T("settings.upgrade.p.opening"),
           true
         );
-        banner("Firmware upgrade started — opening progress page…", false);
+        bannerT("settings.upgrade.started", null, false);
         goUpgradePage(prevVersion, expectedSeconds || 180, keepConfig);
       }
 
@@ -796,9 +892,9 @@
         if (!ev.lengthComputable) {
           setUpgradeProgress(
             true,
-            "Uploading image…",
+            T("settings.upgrade.p.uploading"),
             0,
-            fmtBytes(ev.loaded) + " sent",
+            T("settings.upgrade.p.sent", { size: fmtBytes(ev.loaded) }),
             true
           );
           return;
@@ -806,7 +902,7 @@
         var pct = (ev.loaded / ev.total) * 100;
         setUpgradeProgress(
           true,
-          "Uploading image… " + Math.round(pct) + "%",
+          T("settings.upgrade.p.uploading_pct", { pct: Math.round(pct) }),
           pct,
           fmtBytes(ev.loaded) + " / " + fmtBytes(ev.total),
           false
@@ -817,32 +913,44 @@
         uploadFinished = true;
         setUpgradeProgress(
           true,
-          "Processing on router…",
+          T("settings.upgrade.p.processing"),
           100,
-          "Verifying SHA256 on appliance, then sysupgrade",
+          T("settings.upgrade.p.verifying"),
           true
         );
-        banner("Upload finished — router is verifying checksum…", false);
+        bannerT("settings.upgrade.uploaded", null, false);
       };
 
       xhr.onerror = function () {
         if (uploadFinished) {
-          enterRebootWait("Link dropped after upload — waiting for reboot");
+          enterRebootWait(T("settings.upgrade.link_dropped"));
           return;
         }
         btn.disabled = false;
-        setUpgradeProgress(true, "Upload failed", 0, "Network error during upload", false);
-        banner("Upload failed — network error. Check LAN and try again.", true);
+        setUpgradeProgress(
+          true,
+          T("settings.upgrade.p.upload_failed"),
+          0,
+          T("settings.upgrade.p.network_error"),
+          false
+        );
+        bannerT("settings.upgrade.err.network", null, true);
       };
 
       xhr.ontimeout = function () {
         if (uploadFinished) {
-          enterRebootWait("Timed out waiting for upgrade response — waiting for reboot");
+          enterRebootWait(T("settings.upgrade.timeout_wait"));
           return;
         }
         btn.disabled = false;
-        setUpgradeProgress(true, "Timed out", 0, "Upload took too long", false);
-        banner("Upload timed out. Try again on a stable LAN link.", true);
+        setUpgradeProgress(
+          true,
+          T("settings.upgrade.p.timed_out"),
+          0,
+          T("settings.upgrade.p.too_long"),
+          false
+        );
+        bannerT("settings.upgrade.err.timeout", null, true);
       };
 
       xhr.onload = function () {
@@ -851,25 +959,25 @@
           d = parseJsonResponse(xhr, xhr.responseText || "");
         } catch (e) {
           if (uploadFinished || xhr.status === 0) {
-            enterRebootWait("Router rebooting (response cut) — waiting to reconnect");
+            enterRebootWait(T("settings.upgrade.response_cut"));
             return;
           }
           btn.disabled = false;
-          setUpgradeProgress(true, "Upgrade failed", 0, String(e.message || e), false);
+          setUpgradeProgress(true, T("settings.upgrade.p.failed"), 0, String(e.message || e), false);
           banner(String(e.message || e), true);
           return;
         }
         if (!d || !d.ok) {
           btn.disabled = false;
-          var msg = (d && d.message) || (d && d.error) || "Upgrade failed";
-          setUpgradeProgress(true, "Upgrade rejected", 0, msg, false);
+          var msg = apiText(d, "settings.upgrade.p.failed");
+          setUpgradeProgress(true, T("settings.upgrade.p.rejected"), 0, msg, false);
           banner(msg, true);
           return;
         }
         $("upgradeConfirm").value = "";
         $("upgradePass").value = "";
         enterRebootWait(
-          (d.message || "Device will reboot") + (d.bytes ? " (" + fmtBytes(d.bytes) + ")" : ""),
+          apiText(d, "settings.upgrade.device_reboot") + (d.bytes ? " (" + fmtBytes(d.bytes) + ")" : ""),
           d.expected_seconds || 180
         );
       };
@@ -884,15 +992,12 @@
             btn.disabled = false;
             setUpgradeProgress(
               true,
-              "Checksum mismatch",
+              T("settings.upgrade.p.mismatch"),
               0,
-              "File does not match the SHA256 you pasted",
+              T("settings.upgrade.p.mismatch_detail"),
               false
             );
-            banner(
-              "SHA256 mismatch — the file does not match the checksum. Re-download the image and paste the hash from the release page.",
-              true
-            );
+            bannerT("settings.upgrade.err.mismatch", null, true);
             return;
           }
           startUpload(true);
@@ -910,18 +1015,15 @@
     var pass = $("confPass").value || "";
     var conf = ($("confConfirm").value || "").trim();
     if (conf !== "SAVE") {
-      banner("Type SAVE to confirm.", true);
+      bannerT("settings.err.type_word", { word: "SAVE" }, true);
       return;
     }
     if (!user || !pass) {
-      banner("Router username and password required.", true);
+      bannerT("settings.err.auth_required", null, true);
       return;
     }
     if (
-      !confirmPopup("Save bitcoin.conf and restart the node?", [
-        "Allowlisted settings only.",
-        "bitcoind will restart. Chain data is kept."
-      ])
+      !confirmPopup(T("settings.conf.confirm_title"), [T("settings.conf.confirm_body")])
     ) {
       return;
     }
@@ -943,7 +1045,7 @@
       encodeURIComponent($("blocksonly").value) +
       "&peerbloomfilters=" +
       encodeURIComponent($("peerbloomfilters").value);
-    banner("Saving and restarting node…", false);
+    bannerT("settings.conf.saving", null, false);
     fetch("/api/settings?action=conf_save", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -957,13 +1059,13 @@
       })
       .then(function (d) {
         if (!d || !d.ok) {
-          banner((d && d.message) || (d && d.error) || "Save failed", true);
+          banner(apiText(d, "settings.conf.save_failed"), true);
           return;
         }
-        banner(d.message || "Saved.", false);
+        banner(apiText(d, "settings.conf.saved"), false);
         $("confConfirm").value = "";
         $("confPass").value = "";
-        if ($("nodeRunning")) $("nodeRunning").textContent = "restarting…";
+        setNodeState("restarting");
         return pollNodeUntil(function (st) {
           return st && st.node_running === true;
         }).then(function () {
@@ -981,22 +1083,19 @@
     var conf = ($("advConfirm").value || "").trim();
     var adv = ($("advConfirmAdv").value || "").trim();
     if (adv !== "ADVANCED") {
-      banner("Type ADVANCED for raw editor.", true);
+      bannerT("settings.adv.err_type", { word: "ADVANCED" }, true);
       return;
     }
     if (conf !== "SAVE") {
-      banner("Type SAVE to confirm.", true);
+      bannerT("settings.err.type_word", { word: "SAVE" }, true);
       return;
     }
     if (!user || !pass) {
-      banner("Router username and password required.", true);
+      bannerT("settings.err.auth_required", null, true);
       return;
     }
     if (
-      !confirmPopup("Save raw bitcoin.conf and restart the node?", [
-        "Advanced path — product topology keys cannot change.",
-        "bitcoind will restart. Chain data is kept."
-      ])
+      !confirmPopup(T("settings.adv.confirm_title"), [T("settings.adv.confirm_body")])
     ) {
       return;
     }
@@ -1007,7 +1106,7 @@
      */
     var q =
       "/api/settings?action=conf_save&advanced=1&confirm=SAVE&confirm_advanced=ADVANCED";
-    banner("Saving raw conf and restarting node…", false);
+    bannerT("settings.adv.saving", null, false);
     fetch(q, {
       method: "POST",
       body: $("rawConf").value || "",
@@ -1024,14 +1123,14 @@
       })
       .then(function (d) {
         if (!d || !d.ok) {
-          banner((d && d.message) || (d && d.error) || "Save failed", true);
+          banner(apiText(d, "settings.conf.save_failed"), true);
           return;
         }
-        banner(d.message || "Saved.", false);
+        banner(apiText(d, "settings.conf.saved"), false);
         $("advConfirm").value = "";
         $("advConfirmAdv").value = "";
         $("advPass").value = "";
-        if ($("nodeRunning")) $("nodeRunning").textContent = "restarting…";
+        setNodeState("restarting");
         return pollNodeUntil(function (st) {
           return st && st.node_running === true;
         }).then(function () {
@@ -1050,21 +1149,23 @@
       var lang = ($("uiLang") && $("uiLang").value) || "";
       var typed = ($("langConfirm").value || "").trim();
       if (!user || !pass) {
-        banner("Router username and password required.", true);
+        bannerT("settings.err.auth_required", null, true);
         return;
       }
       if (!lang) {
-        banner("Choose a language.", true);
+        bannerT("settings.lang.err_choose", null, true);
         return;
       }
       if (typed !== "LANGUAGE") {
-        banner("Type LANGUAGE to confirm.", true);
+        bannerT("settings.err.type_word", { word: "LANGUAGE" }, true);
         return;
       }
+      var sel = $("uiLang");
+      var langName =
+        (sel && sel.selectedIndex >= 0 && sel.options[sel.selectedIndex].textContent) || lang;
       if (
-        !confirmPopup("Change UI language?", [
-          "Knots Node Status and LuCI will both use: " + lang,
-          "Requires router root password (U15)."
+        !confirmPopup(T("settings.lang.confirm_title"), [
+          T("settings.lang.confirm_body", { lang: langName })
         ])
       ) {
         return;
@@ -1076,7 +1177,7 @@
         encodeURIComponent(user) +
         "&password=" +
         encodeURIComponent(pass);
-      banner("Applying language…", false);
+      bannerT("settings.lang.applying", null, false);
       fetch("/api/settings?action=locale", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -1090,13 +1191,13 @@
         })
         .then(function (d) {
           if (!d || !d.ok) {
-            banner((d && d.message) || (d && d.error) || "Language change failed", true);
+            banner(apiText(d, "settings.lang.failed"), true);
             return;
           }
           if ($("langConfirm")) $("langConfirm").value = "";
           if ($("langPass")) $("langPass").value = "";
-          banner(d.message || "Language updated.", false);
-          /* Reload so Knots i18n + nav pick up /ui-lang */
+          banner(apiText(d, "api.settings.lang_updated"), false);
+          /* Reload so the page i18n + nav pick up /ui-lang */
           window.location.reload();
         })
         .catch(function (e) {
@@ -1117,5 +1218,18 @@
   } catch (e) {
     /* private mode */
   }
+  /* Re-draw the text this script draws once when a language loads. */
+  function redraw() {
+    drawTitle();
+    drawConfirmLabels();
+    setNodeState(nodeState);
+    drawCaRestricted();
+    syncUpgradeKeepUi();
+    if (bannerKey) bannerT(bannerKey.key, bannerKey.vars, bannerKey.isErr);
+  }
+  if (window.KnotsI18n && typeof window.KnotsI18n.onChange === "function") {
+    window.KnotsI18n.onChange(redraw);
+  }
+  drawConfirmLabels();
   load();
 })();
