@@ -2,6 +2,7 @@
 
 | Document | What it covers |
 |----------|----------------|
+| `USER_GUIDE.md` | **User guide** — Setup, Node Status, Settings, updates, reset, lights and buttons (with screenshots) |
 | `../REQUIREMENTS.md` | What the product must do (product authority) |
 | `../TECH_SPEC.md` | How it is built |
 | `RELEASE_PROCESS.md` | How the project works and how releases are made, signed and checked |
