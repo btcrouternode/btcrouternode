@@ -31,7 +31,12 @@ from uat_wizard import GUIDED_DHCP_START, GUIDED_SSID, with_wizard  # noqa: E402
 # secret; unlabelled routers keep the legacy password (Wi-Fi off pre-Setup).
 LEGACY_FACTORY_PASS = "knotsnode21"
 FACTORY_PASS = os.environ.get("KNOTS_UAT_FACTORY_PASS", LEGACY_FACTORY_PASS)
-EXPECT_LABELLED = FACTORY_PASS != LEGACY_FACTORY_PASS
+# Labelled or not: KNOTS_UAT_LABELLED=1/0, or implied by KNOTS_UAT_FACTORY_PASS;
+# otherwise read from the router at the status phase (a station-built unit is
+# labelled) — the factory phase then checks a reset keeps that state.
+_LBL = os.environ.get("KNOTS_UAT_LABELLED", "")
+EXPECT_LABELLED = (True if FACTORY_PASS != LEGACY_FACTORY_PASS
+                   else {"1": True, "0": False}.get(_LBL))
 FACTORY_SSID = "rnode"
 QUICK_PASS = "uattest99"
 GUIDED_PASS = "uattest88"
@@ -150,7 +155,7 @@ def write_summary(exit_code: int, extra: dict[str, Any] | None = None) -> None:
         "exit_code": exit_code,
         "host": HOST,
         "user": USER,
-        "password_at_end": R.password,
+        "password_at_end": _pass_note(),
         "passed": sum(1 for r in RESULTS if r["pass"]),
         "failed": len(FAILS),
         "checks": len(RESULTS),
@@ -425,6 +430,16 @@ def html_has(path: str, needle: str, **kw: Any) -> bool:
     return needle in text
 
 
+def _pass_note() -> str:
+    """Never write the operator's own password into a log: name it only when
+    it is one of this suite's public test values (set by the Setup phases)."""
+    if R.password == PASS:
+        return "unchanged (the one you entered)"
+    if R.password in (QUICK_PASS, GUIDED_PASS):
+        return R.password
+    return "changed by this run (see the phase that set it)"
+
+
 def find_image() -> tuple[Path, str]:
     explicit = env("KNOTS_UAT_IMAGE", "")
     if explicit:
@@ -448,7 +463,10 @@ def find_image() -> tuple[Path, str]:
             path.parent / f"{path.name}.sha256",
         ):
             if sib.is_file():
-                sha = sib.read_text(encoding="utf-8").split()[0]
+                # a release .sha256 lists several files: take the image's line
+                lines = [ln.split() for ln in sib.read_text(encoding="utf-8").splitlines() if ln.strip()]
+                mine = [p[0] for p in lines if len(p) > 1 and p[-1].lstrip("*") == path.name]
+                sha = mine[0] if mine else (lines[0][0] if len(lines) == 1 else "")
                 break
     sha = sha.strip().lower()
     if len(sha) != 64:
@@ -576,6 +594,10 @@ def phase_status() -> None:
     su = R.setup_status()
     ok("UAT-S-3", "Setup status", bool(su.get("ok")), str(su.get("error") or su)[:160])
     if "factory_labelled" in su:
+        global EXPECT_LABELLED
+        if EXPECT_LABELLED is None and isinstance(su.get("factory_labelled"), bool):
+            EXPECT_LABELLED = su["factory_labelled"]
+            log(f"  .. label state read from the router: {'labelled' if EXPECT_LABELLED else 'unlabelled'}")
         ok(
             "UAT-S-5",
             f"factory_labelled={EXPECT_LABELLED} (P1 per-device secret {'provisioned' if EXPECT_LABELLED else 'absent'})",
@@ -1235,6 +1257,8 @@ def _check_factory_wifi() -> None:
     Setup status wifi_on (router UCI) — the UAT laptop may not rescan Wi-Fi
     (NetworkManager polkit), so an SSID scan would be stale."""
     want = EXPECT_LABELLED
+    if want is None:  # status phase skipped: the label must survive the reset either way
+        want = R.setup_status().get("factory_labelled") is True
 
     def _state() -> bool:
         su = R.setup_status()
@@ -1248,6 +1272,8 @@ def _check_factory_wifi() -> None:
         good,
         f"wifi_on={su.get('wifi_on')} factory_labelled={su.get('factory_labelled')}",
     )
+    ok("UAT-F-LABEL", "factory reset keeps the label state (per-device secret)",
+       su.get("factory_labelled") is want, f"before={want} after={su.get('factory_labelled')}")
 
 
 def _dns_a(name: str, server: str) -> str:
@@ -1738,10 +1764,10 @@ def main() -> int:
             log("FAILED:")
             for item in FAILS:
                 log(f"  {item}")
-            log(f"Current router password in this session: {R.password}")
+            log(f"Router password now: {_pass_note()}")
             exit_code = 1
             return exit_code
-        log(f"ALL PASS. Router password now: {R.password}")
+        log(f"ALL PASS. Router password now: {_pass_note()}")
         log("Wi-Fi PSK if Setup applied Wi-Fi: " + UAT_WIFI)
         exit_code = 0
         return exit_code
