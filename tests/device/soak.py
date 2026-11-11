@@ -5,7 +5,7 @@
 Runs on the UAT laptop against the test router for SOAK_HOURS (default 48):
   * every HEALTH_MIN (10) minutes — health: Settings + Setup APIs answer,
     :80 / :443 / LuCI :8443 up, node running and not stuck busy, block height
-    not going backwards and advancing over each hour, no last_op failures
+    not going backwards and advancing over every 3 hours (checked hourly), no last_op failures
   * every REBOOT_HOURS (2) — Settings reboot; must go down and come back
     healthy within RECOVER_MIN (15)
   * every UPGRADE_HOURS (8) — keep-settings upgrade with the same image;
@@ -15,7 +15,7 @@ Writes results/soak-<run>.jsonl (one event per line) and a summary at the
 end; exits 1 on any failure. Uses the UAT's Router client (uat-web.py), so it
 authenticates with the UAT's own known test password only.
 
-env: SOAK_HOURS HEALTH_MIN REBOOT_HOURS UPGRADE_HOURS RECOVER_MIN KNOTS_UAT_HOST
+env: SOAK_HOURS HEALTH_MIN REBOOT_HOURS UPGRADE_HOURS RECOVER_MIN ADVANCE_HOURS KNOTS_UAT_HOST
 """
 import importlib.util
 import json
@@ -36,6 +36,11 @@ HEALTH_MIN = float(os.environ.get("HEALTH_MIN", "10"))
 REBOOT_H = float(os.environ.get("REBOOT_HOURS", "2"))
 UPGRADE_H = float(os.environ.get("UPGRADE_HOURS", "8"))
 RECOVER_MIN = float(os.environ.get("RECOVER_MIN", "15"))
+# Block height must advance over this window, checked every hour. Not one hour:
+# the network itself goes over an hour without a block a few times a week
+# (25.1.32.0 soak: 975450 → 975451 took 66 min), which is not a node fault.
+# No block in 3 h is about 1 in 60 million on a healthy network.
+ADVANCE_H = float(os.environ.get("ADVANCE_HOURS", "3"))
 RUN = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 SOAK_T0 = int(time.time())
 OUT = HERE / "results" / f"soak-{RUN}.jsonl"
@@ -160,9 +165,10 @@ def main() -> int:
         time.sleep(HEALTH_MIN * 60)
         health("periodic")
         now = time.time()
-        if now - last_hour_check >= 3600 and len(heights) >= 2:
-            recent = [h for t, h in heights if t >= now - 3600]
-            emit("height_advancing", len(recent) >= 2 and recent[-1] > recent[0],
+        win = ADVANCE_H * 3600
+        if now - last_hour_check >= 3600 and heights and heights[0][0] <= now - win + HEALTH_MIN * 60:
+            recent = [h for t, h in heights if t >= now - win]
+            emit("height_advancing", len(recent) >= 2 and recent[-1] > recent[0], hours=ADVANCE_H,
                  first=recent[0] if recent else None, last=recent[-1] if recent else None)
             last_hour_check = now
         if now >= next_upgrade:
