@@ -12,7 +12,7 @@ verifies it itself. (Inside the firmware the device still calls itself
 - Setup from a laptop or computer, with a secure (HTTPS) connection to the router
 - Updates only from releases signed by the maintainers
 
-**Current release:** `25.0.32.0` (OpenWrt 25.12, Bitcoin Core 32.1) — see
+**Current release:** `25.1.32.0` (OpenWrt 25.12, Bitcoin Core 32.1) — [release notes](docs/releases/25.1.32.0.md); see
 [Releases](../../releases) for the image, its SHA256 and signatures. Version =
 `{OpenWrt major}.{router fix}.{Core major}.{node fix}`.
 

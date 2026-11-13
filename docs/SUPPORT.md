@@ -103,6 +103,11 @@ address**) — use that, or the unit's IP address.
   `25.0.32.0`.** That release did not keep them across an upgrade. Set them
   again in **Settings → Bitcoin node configuration**; from `25.1.32.0` on they
   are kept.
+- **The router is on `24.10.8.29.5.119` (or older) and the owner wants 25.x.**
+  That move also replaces the boot loader, so it is a fresh install from the
+  SD card or over the serial console, not Settings → Appliance upgrade
+  ([release notes](releases/25.1.32.0.md)). The blockchain is kept; Setup runs
+  again.
 - **The upgrade page shows `rnode.local` cannot be found** — wait 15 minutes
   from clicking **Verify & upgrade**, then open `http://192.168.1.254/`.
 
