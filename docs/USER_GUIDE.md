@@ -693,10 +693,9 @@ again.
 RNode accepts **only official releases signed by the RNode maintainers**. An
 update never touches the blockchain.
 
-> **On 24.10.8.29.5.119 or older?** Moving to 25.x (OpenWrt 25.12) also
-> replaces the boot loader, which an update from Settings cannot do. Install
-> 25.x fresh from the SD card or over the serial console instead (see the
-> release notes). The blockchain is kept; Setup runs again.
+> **On 24.10.8.29.5.119?** Moving to 25.x (OpenWrt 25.12) works only with
+> **Reset settings**. With *Keep settings* the update is refused and nothing
+> changes. The blockchain is kept; Setup runs again.
 
 1. Download the firmware (`bpi-r4-phase2-<version>-squashfs-sysupgrade.itb`)
    and its **SHA256** from the release page.
